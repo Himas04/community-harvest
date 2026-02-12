@@ -56,6 +56,47 @@ export type Database = {
         }
         Relationships: []
       }
+      pickup_requests: {
+        Row: {
+          created_at: string
+          id: string
+          listing_id: string
+          note: string | null
+          receiver_id: string
+          status: Database["public"]["Enums"]["request_status"]
+          updated_at: string
+          volunteer_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          listing_id: string
+          note?: string | null
+          receiver_id: string
+          status?: Database["public"]["Enums"]["request_status"]
+          updated_at?: string
+          volunteer_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          listing_id?: string
+          note?: string | null
+          receiver_id?: string
+          status?: Database["public"]["Enums"]["request_status"]
+          updated_at?: string
+          volunteer_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "pickup_requests_listing_id_fkey"
+            columns: ["listing_id"]
+            isOneToOne: false
+            referencedRelation: "food_listings"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       profiles: {
         Row: {
           avatar_url: string | null
@@ -126,6 +167,12 @@ export type Database = {
     Enums: {
       app_role: "admin" | "donor" | "receiver" | "volunteer"
       listing_status: "available" | "claimed" | "completed"
+      request_status:
+        | "pending"
+        | "accepted"
+        | "picked_up"
+        | "delivered"
+        | "cancelled"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -255,6 +302,13 @@ export const Constants = {
     Enums: {
       app_role: ["admin", "donor", "receiver", "volunteer"],
       listing_status: ["available", "claimed", "completed"],
+      request_status: [
+        "pending",
+        "accepted",
+        "picked_up",
+        "delivered",
+        "cancelled",
+      ],
     },
   },
 } as const
