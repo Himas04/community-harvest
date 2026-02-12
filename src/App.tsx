@@ -13,6 +13,10 @@ import DonorDashboard from "./pages/dashboard/DonorDashboard";
 import ReceiverDashboard from "./pages/dashboard/ReceiverDashboard";
 import VolunteerDashboard from "./pages/dashboard/VolunteerDashboard";
 import AdminDashboard from "./pages/dashboard/AdminDashboard";
+import CreateListing from "./pages/food/CreateListing";
+import EditListing from "./pages/food/EditListing";
+import FoodDetail from "./pages/food/FoodDetail";
+import BrowseFood from "./pages/food/BrowseFood";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -48,6 +52,10 @@ const App = () => (
             <Route path="/dashboard/receiver" element={<ProtectedRoute><RoleRoute allowedRole="receiver"><ReceiverDashboard /></RoleRoute></ProtectedRoute>} />
             <Route path="/dashboard/volunteer" element={<ProtectedRoute><RoleRoute allowedRole="volunteer"><VolunteerDashboard /></RoleRoute></ProtectedRoute>} />
             <Route path="/dashboard/admin" element={<ProtectedRoute><RoleRoute allowedRole="admin"><AdminDashboard /></RoleRoute></ProtectedRoute>} />
+            <Route path="/food/create" element={<ProtectedRoute><RoleRoute allowedRole="donor"><CreateListing /></RoleRoute></ProtectedRoute>} />
+            <Route path="/food/edit/:id" element={<ProtectedRoute><RoleRoute allowedRole="donor"><EditListing /></RoleRoute></ProtectedRoute>} />
+            <Route path="/food/:id" element={<ProtectedRoute><FoodDetail /></ProtectedRoute>} />
+            <Route path="/browse" element={<ProtectedRoute><BrowseFood /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>
