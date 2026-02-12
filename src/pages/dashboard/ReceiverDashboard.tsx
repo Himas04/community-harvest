@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { FoodMap } from "@/components/FoodMap";
+import { supabase } from "@/integrations/supabase/client";
 import { fetchFoodListings } from "@/lib/food-listings";
 import { fetchRequestsForReceiver, cancelRequest, statusLabel, statusColor, type PickupRequest } from "@/lib/pickup-requests";
 import { useAuth } from "@/lib/auth";
@@ -31,6 +32,16 @@ export default function ReceiverDashboard() {
   };
 
   useEffect(() => { loadData(); }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('receiver-dashboard')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pickup_requests' }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'food_listings' }, () => loadData())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   const handleCancel = async (req: PickupRequest) => {
     if (!confirm("Cancel this request?")) return;

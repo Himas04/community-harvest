@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { fetchMyListings, deleteFoodListing } from "@/lib/food-listings";
 import { fetchRequestsForDonor, statusLabel, statusColor, type PickupRequest } from "@/lib/pickup-requests";
 import { useToast } from "@/hooks/use-toast";
@@ -28,6 +29,17 @@ export default function DonorDashboard() {
   };
 
   useEffect(() => { loadData(); }, [user]);
+
+  // Realtime subscriptions
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('donor-dashboard')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pickup_requests' }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'food_listings', filter: `donor_id=eq.${user.id}` }, () => loadData())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this listing?")) return;
