@@ -6,30 +6,35 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import { fetchMyListings, deleteFoodListing } from "@/lib/food-listings";
+import { fetchRequestsForDonor, statusLabel, statusColor, type PickupRequest } from "@/lib/pickup-requests";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, MapPin } from "lucide-react";
+import { Plus, Edit, Trash2, MapPin, Package } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 export default function DonorDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [listings, setListings] = useState<Tables<"food_listings">[]>([]);
+  const [requests, setRequests] = useState<PickupRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadListings = () => {
+  const loadData = () => {
     if (!user) return;
     setLoading(true);
-    fetchMyListings(user.id).then(setListings).catch(() => {}).finally(() => setLoading(false));
+    Promise.all([
+      fetchMyListings(user.id),
+      fetchRequestsForDonor(user.id),
+    ]).then(([l, r]) => { setListings(l); setRequests(r); }).catch(() => {}).finally(() => setLoading(false));
   };
 
-  useEffect(() => { loadListings(); }, [user]);
+  useEffect(() => { loadData(); }, [user]);
 
   const handleDelete = async (id: string) => {
     if (!confirm("Delete this listing?")) return;
     try {
       await deleteFoodListing(id);
       toast({ title: "Deleted" });
-      loadListings();
+      loadData();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
@@ -38,6 +43,7 @@ export default function DonorDashboard() {
   const active = listings.filter((l) => l.status === "available").length;
   const completed = listings.filter((l) => l.status === "completed").length;
   const claimed = listings.filter((l) => l.status === "claimed").length;
+  const pendingRequests = requests.filter((r) => r.status === "pending" || r.status === "accepted").length;
 
   return (
     <div className="min-h-screen">
@@ -50,11 +56,33 @@ export default function DonorDashboard() {
           </Button>
         </div>
 
-        <div className="mb-8 grid gap-4 sm:grid-cols-3">
+        <div className="mb-8 grid gap-4 sm:grid-cols-4">
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Active Listings</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{active}</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{completed}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Pending Pickup</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-accent">{claimed}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Claimed</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-accent">{claimed}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Pending Requests</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-accent">{pendingRequests}</p></CardContent></Card>
         </div>
+
+        {/* Incoming Requests */}
+        {requests.length > 0 && (
+          <>
+            <h2 className="mb-4 text-xl font-semibold flex items-center gap-2"><Package className="h-5 w-5" /> Incoming Requests</h2>
+            <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {requests.map((req) => (
+                <Card key={req.id}>
+                  <CardContent className="p-4">
+                    <div className="mb-2 flex items-start justify-between gap-2">
+                      <h3 className="font-semibold line-clamp-1">{req.food_listings?.title || "Listing"}</h3>
+                      <Badge className={`${statusColor(req.status)} text-white shrink-0 text-xs`}>{statusLabel(req.status)}</Badge>
+                    </div>
+                    {req.note && <p className="mb-2 text-sm text-muted-foreground line-clamp-2">"{req.note}"</p>}
+                    <p className="text-xs text-muted-foreground">Requested {new Date(req.created_at).toLocaleDateString()}</p>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </>
+        )}
 
         <h2 className="mb-4 text-xl font-semibold">My Listings</h2>
         {loading ? (
