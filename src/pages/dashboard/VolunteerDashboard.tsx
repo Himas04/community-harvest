@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
+import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
   fetchPendingRequests,
@@ -35,6 +36,16 @@ export default function VolunteerDashboard() {
   };
 
   useEffect(() => { loadData(); }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const channel = supabase
+      .channel('volunteer-dashboard')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'pickup_requests' }, () => loadData())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'food_listings' }, () => loadData())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
+  }, [user]);
 
   const handleAccept = async (requestId: string) => {
     if (!user) return;
