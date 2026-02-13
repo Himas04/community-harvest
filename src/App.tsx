@@ -17,6 +17,7 @@ import CreateListing from "./pages/food/CreateListing";
 import EditListing from "./pages/food/EditListing";
 import FoodDetail from "./pages/food/FoodDetail";
 import BrowseFood from "./pages/food/BrowseFood";
+import Messages from "./pages/Messages";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -56,6 +57,8 @@ const App = () => (
             <Route path="/food/edit/:id" element={<ProtectedRoute><RoleRoute allowedRole="donor"><EditListing /></RoleRoute></ProtectedRoute>} />
             <Route path="/food/:id" element={<ProtectedRoute><FoodDetail /></ProtectedRoute>} />
             <Route path="/browse" element={<ProtectedRoute><BrowseFood /></ProtectedRoute>} />
+            <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+            <Route path="/messages/:listingId/:otherUserId" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

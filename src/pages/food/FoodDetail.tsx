@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { useParams, Link, useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,9 +7,11 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { fetchListingById } from "@/lib/food-listings";
 import { createPickupRequest } from "@/lib/pickup-requests";
+import { createReview, hasReviewed } from "@/lib/reviews";
+import { StarRating } from "@/components/StarRating";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, MapPin, Clock } from "lucide-react";
+import { ArrowLeft, MapPin, Clock, MessageSquare } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { FoodMap } from "@/components/FoodMap";
 
@@ -17,16 +19,29 @@ export default function FoodDetail() {
   const { id } = useParams<{ id: string }>();
   const { user, role } = useAuth();
   const { toast } = useToast();
+  const navigate = useNavigate();
   const [listing, setListing] = useState<Tables<"food_listings"> | null>(null);
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [note, setNote] = useState("");
   const [showNote, setShowNote] = useState(false);
 
+  // Review state
+  const [showReview, setShowReview] = useState(false);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [submittingReview, setSubmittingReview] = useState(false);
+  const [alreadyReviewed, setAlreadyReviewed] = useState(false);
+
   useEffect(() => {
     if (!id) return;
     fetchListingById(id).then(setListing).catch(() => {}).finally(() => setLoading(false));
   }, [id]);
+
+  useEffect(() => {
+    if (!id || !user) return;
+    hasReviewed(id, user.id).then(setAlreadyReviewed);
+  }, [id, user]);
 
   const handleRequest = async () => {
     if (!user || !listing) return;
@@ -43,10 +58,27 @@ export default function FoodDetail() {
     }
   };
 
+  const handleReview = async () => {
+    if (!user || !listing) return;
+    setSubmittingReview(true);
+    try {
+      await createReview(listing.id, user.id, listing.donor_id, reviewRating, reviewComment);
+      toast({ title: "Review submitted!", description: "Thank you for your feedback." });
+      setAlreadyReviewed(true);
+      setShowReview(false);
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    } finally {
+      setSubmittingReview(false);
+    }
+  };
+
   if (loading) return <div className="min-h-screen"><Navbar /><div className="flex items-center justify-center py-20 text-muted-foreground">Loading...</div></div>;
   if (!listing) return <div className="min-h-screen"><Navbar /><div className="flex items-center justify-center py-20 text-muted-foreground">Listing not found.</div></div>;
 
-  const statusColor = listing.status === "available" ? "bg-primary" : listing.status === "claimed" ? "bg-accent" : "bg-muted-foreground";
+  const statusColorClass = listing.status === "available" ? "bg-primary" : listing.status === "claimed" ? "bg-accent" : "bg-muted-foreground";
+  const canMessage = user && listing.donor_id !== user.id;
+  const canReview = user && role === "receiver" && listing.status === "completed" && !alreadyReviewed && listing.donor_id !== user.id;
 
   return (
     <div className="min-h-screen">
@@ -64,7 +96,7 @@ export default function FoodDetail() {
             <div className="space-y-4 p-6">
               <div className="flex items-start justify-between gap-3">
                 <h1 className="text-2xl font-bold">{listing.title}</h1>
-                <Badge className={`${statusColor} text-primary-foreground`}>{listing.status}</Badge>
+                <Badge className={`${statusColorClass} text-primary-foreground`}>{listing.status}</Badge>
               </div>
 
               {listing.description && <p className="text-muted-foreground">{listing.description}</p>}
@@ -85,6 +117,18 @@ export default function FoodDetail() {
                 <FoodMap listings={[listing]} className="mt-4" />
               )}
 
+              {/* Message Donor button */}
+              {canMessage && (
+                <Button
+                  variant="outline"
+                  className="w-full"
+                  onClick={() => navigate(`/messages/${listing.id}/${listing.donor_id}`)}
+                >
+                  <MessageSquare className="mr-2 h-4 w-4" /> Message Donor
+                </Button>
+              )}
+
+              {/* Request Pickup */}
               {listing.status === "available" && role === "receiver" && (
                 <div className="space-y-3">
                   {!showNote ? (
@@ -113,6 +157,37 @@ export default function FoodDetail() {
 
               {listing.status === "claimed" && (
                 <p className="text-center text-sm text-muted-foreground">This listing has been claimed.</p>
+              )}
+
+              {/* Review section */}
+              {canReview && (
+                <div className="space-y-3 rounded-lg border p-4">
+                  {!showReview ? (
+                    <Button variant="secondary" className="w-full" onClick={() => setShowReview(true)}>
+                      Leave a Review
+                    </Button>
+                  ) : (
+                    <>
+                      <h3 className="text-sm font-semibold">Rate this donor</h3>
+                      <StarRating value={reviewRating} onChange={setReviewRating} />
+                      <Textarea
+                        placeholder="Share your experience (optional)..."
+                        value={reviewComment}
+                        onChange={(e) => setReviewComment(e.target.value)}
+                      />
+                      <div className="flex gap-2">
+                        <Button className="flex-1" onClick={handleReview} disabled={submittingReview}>
+                          {submittingReview ? "Submitting..." : "Submit Review"}
+                        </Button>
+                        <Button variant="outline" onClick={() => setShowReview(false)}>Cancel</Button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {alreadyReviewed && listing.status === "completed" && (
+                <p className="text-center text-sm text-muted-foreground">✓ You've already reviewed this listing.</p>
               )}
             </div>
           </CardContent>

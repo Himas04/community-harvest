@@ -1,4 +1,5 @@
 import { supabase } from "@/integrations/supabase/client";
+import { createNotification } from "@/lib/notifications";
 
 export type PickupRequest = {
   id: string;
@@ -27,11 +28,16 @@ export async function createPickupRequest(listingId: string, receiverId: string,
   const { data, error } = await supabase
     .from("pickup_requests")
     .insert({ listing_id: listingId, receiver_id: receiverId, note: note || null } as any)
-    .select()
+    .select("*, food_listings(donor_id, title)")
     .single();
   if (error) throw error;
   // Also update the listing status to claimed
   await supabase.from("food_listings").update({ status: "claimed" as any }).eq("id", listingId);
+  // Notify the donor
+  const donorId = (data as any)?.food_listings?.donor_id;
+  if (donorId) {
+    await createNotification(donorId, "new_request", "New pickup request", `Someone requested "${(data as any)?.food_listings?.title}"`, `/food/${listingId}`);
+  }
   return data;
 }
 
@@ -80,9 +86,14 @@ export async function acceptRequest(requestId: string, volunteerId: string) {
     .from("pickup_requests")
     .update({ volunteer_id: volunteerId, status: "accepted" as any } as any)
     .eq("id", requestId)
-    .select()
+    .select("*, food_listings(title)")
     .single();
   if (error) throw error;
+  // Notify the receiver
+  const receiverId = (data as any)?.receiver_id;
+  if (receiverId) {
+    await createNotification(receiverId, "request_accepted", "Pickup accepted!", `A volunteer accepted your request for "${(data as any)?.food_listings?.title}"`);
+  }
   return data;
 }
 
@@ -91,12 +102,24 @@ export async function updateRequestStatus(requestId: string, status: "picked_up"
     .from("pickup_requests")
     .update({ status: status as any } as any)
     .eq("id", requestId)
-    .select("*, food_listings(id)")
+    .select("*, food_listings(id, title, donor_id)")
     .single();
   if (error) throw error;
   // If delivered, update listing to completed
   if (status === "delivered" && (data as any)?.food_listings?.id) {
     await supabase.from("food_listings").update({ status: "completed" as any }).eq("id", (data as any).food_listings.id);
+  }
+  // Notify receiver about status changes
+  const receiverId = (data as any)?.receiver_id;
+  const title = (data as any)?.food_listings?.title ?? "your request";
+  if (receiverId) {
+    const statusMessages: Record<string, string> = {
+      picked_up: `Your food "${title}" has been picked up!`,
+      delivered: `Your food "${title}" has been delivered!`,
+    };
+    if (statusMessages[status]) {
+      await createNotification(receiverId, `status_${status}`, statusLabel(status), statusMessages[status]);
+    }
   }
   return data;
 }

@@ -1,7 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
-import { Heart, LogOut, User, Menu, X } from "lucide-react";
+import { NotificationBell } from "@/components/NotificationBell";
+import { Heart, LogOut, User, Menu, X, MessageSquare } from "lucide-react";
 import { useState } from "react";
 
 export function Navbar() {
@@ -34,6 +35,10 @@ export function Navbar() {
               <Link to={dashboardPath} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 Dashboard
               </Link>
+              <Link to="/messages" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+                <MessageSquare className="h-4 w-4" />
+              </Link>
+              <NotificationBell />
               <Link to="/profile" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 <User className="h-4 w-4" />
               </Link>
@@ -54,7 +59,8 @@ export function Navbar() {
         </div>
 
         {/* Mobile toggle */}
-        <button className="md:hidden" onClick={() => setMobileOpen(!mobileOpen)}>
+        <button className="md:hidden flex items-center gap-2" onClick={() => setMobileOpen(!mobileOpen)}>
+          {user && <NotificationBell />}
           {mobileOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
         </button>
       </div>
@@ -67,6 +73,7 @@ export function Navbar() {
             {user ? (
               <>
                 <Link to={dashboardPath} className="text-sm font-medium" onClick={() => setMobileOpen(false)}>Dashboard</Link>
+                <Link to="/messages" className="text-sm font-medium" onClick={() => setMobileOpen(false)}>Messages</Link>
                 <Link to="/profile" className="text-sm font-medium" onClick={() => setMobileOpen(false)}>Profile</Link>
                 <Button variant="ghost" size="sm" onClick={() => { handleSignOut(); setMobileOpen(false); }}>Sign out</Button>
               </>
