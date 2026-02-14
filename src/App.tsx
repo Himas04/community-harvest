@@ -13,6 +13,8 @@ import DonorDashboard from "./pages/dashboard/DonorDashboard";
 import ReceiverDashboard from "./pages/dashboard/ReceiverDashboard";
 import VolunteerDashboard from "./pages/dashboard/VolunteerDashboard";
 import AdminDashboard from "./pages/dashboard/AdminDashboard";
+import AdminLogin from "./pages/admin/AdminLogin";
+import { AdminRoute } from "./components/AdminRoute";
 import CreateListing from "./pages/food/CreateListing";
 import EditListing from "./pages/food/EditListing";
 import FoodDetail from "./pages/food/FoodDetail";
@@ -54,7 +56,11 @@ const App = () => (
             <Route path="/dashboard/donor" element={<ProtectedRoute><RoleRoute allowedRole="donor"><DonorDashboard /></RoleRoute></ProtectedRoute>} />
             <Route path="/dashboard/receiver" element={<ProtectedRoute><RoleRoute allowedRole="receiver"><ReceiverDashboard /></RoleRoute></ProtectedRoute>} />
             <Route path="/dashboard/volunteer" element={<ProtectedRoute><RoleRoute allowedRole="volunteer"><VolunteerDashboard /></RoleRoute></ProtectedRoute>} />
-            <Route path="/dashboard/admin" element={<ProtectedRoute><RoleRoute allowedRole="admin"><AdminDashboard /></RoleRoute></ProtectedRoute>} />
+            {/* Admin routes — completely separate auth flow */}
+            <Route path="/admin/login" element={<AdminLogin />} />
+            <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />
+            {/* Redirect old admin route */}
+            <Route path="/dashboard/admin" element={<Navigate to="/admin/dashboard" replace />} />
             <Route path="/food/create" element={<ProtectedRoute><RoleRoute allowedRole="donor"><CreateListing /></RoleRoute></ProtectedRoute>} />
             <Route path="/food/edit/:id" element={<ProtectedRoute><RoleRoute allowedRole="donor"><EditListing /></RoleRoute></ProtectedRoute>} />
             <Route path="/food/:id" element={<ProtectedRoute><FoodDetail /></ProtectedRoute>} />

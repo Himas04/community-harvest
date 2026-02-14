@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { Navbar } from "@/components/Navbar";
+import { useNavigate } from "react-router-dom";
+import { useAuth } from "@/lib/auth";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -15,7 +16,7 @@ import { fetchAllRequestsAdmin, statusLabel, statusColor, type PickupRequest } f
 import { fetchAllUsers, changeUserRole, deleteListingAdmin, deleteReviewAdmin, fetchAllReviewsAdmin, type UserWithRole } from "@/lib/admin";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables as DbTables } from "@/integrations/supabase/types";
-import { Users, UtensilsCrossed, Star, Truck, Trash2, ShieldCheck, Mail, MessageCircleWarning, BarChart3, Eye, Reply } from "lucide-react";
+import { Users, UtensilsCrossed, Star, Truck, Trash2, ShieldCheck, Mail, MessageCircleWarning, BarChart3, Eye, Reply, LogOut, Shield } from "lucide-react";
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
 
 type ContactMsg = { id: string; name: string; email: string; phone: string | null; message: string; read: boolean; created_at: string };
@@ -172,9 +173,32 @@ export default function AdminDashboard() {
     { label: "Complaints", value: complaints.filter((c) => c.status === "open").length, icon: MessageCircleWarning, color: "text-destructive" },
   ];
 
+  const { signOut, user } = useAuth();
+  const navigate = useNavigate();
+
+  const handleAdminLogout = async () => {
+    await signOut();
+    navigate("/admin/login");
+  };
+
   return (
-    <div className="min-h-screen">
-      <Navbar />
+    <div className="min-h-screen bg-background">
+      {/* Admin Header */}
+      <header className="sticky top-0 z-50 border-b bg-destructive/5 backdrop-blur-md">
+        <div className="container mx-auto flex h-14 items-center justify-between px-4">
+          <div className="flex items-center gap-2">
+            <Shield className="h-5 w-5 text-destructive" />
+            <span className="font-bold text-foreground">Admin Panel</span>
+            <Badge variant="outline" className="ml-2 text-xs border-destructive/30 text-destructive">Restricted</Badge>
+          </div>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-muted-foreground">{user?.email}</span>
+            <Button variant="ghost" size="sm" onClick={handleAdminLogout} className="text-destructive hover:text-destructive">
+              <LogOut className="h-4 w-4 mr-1" /> Sign Out
+            </Button>
+          </div>
+        </div>
+      </header>
       <div className="container mx-auto px-4 py-8">
         <h1 className="mb-6 text-3xl font-bold">Admin Dashboard</h1>
 
