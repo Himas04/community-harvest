@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Heart } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
-type AppRole = "donor" | "receiver" | "volunteer";
+type AppRole = "donor" | "receiver" | "volunteer" | "admin";
 
 export default function Signup() {
   const [name, setName] = useState("");
@@ -69,6 +69,7 @@ export default function Signup() {
                   <SelectItem value="donor">🍽️ Donor — Share surplus food</SelectItem>
                   <SelectItem value="receiver">🙋 Receiver — Find free food</SelectItem>
                   <SelectItem value="volunteer">🚗 Volunteer — Help with deliveries</SelectItem>
+                  <SelectItem value="admin">🛡️ Admin — Moderate the platform</SelectItem>
                 </SelectContent>
               </Select>
             </div>
