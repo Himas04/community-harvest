@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Heart } from "lucide-react";
+import { Heart, ShieldCheck } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 type AppRole = "donor" | "receiver" | "volunteer";
@@ -36,7 +36,18 @@ export default function Signup() {
   };
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 px-4">
+    <div className="relative flex min-h-screen items-center justify-center bg-gradient-to-br from-primary/5 via-background to-accent/5 px-4">
+      <Button
+        variant="ghost"
+        size="sm"
+        className="absolute right-4 top-4 text-xs text-muted-foreground hover:text-foreground"
+        asChild
+      >
+        <Link to="/admin/login">
+          <ShieldCheck className="mr-1 h-3.5 w-3.5" />
+          Admin Login
+        </Link>
+      </Button>
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <Link to="/" className="mx-auto mb-2 flex items-center gap-2 text-xl font-bold text-primary">
