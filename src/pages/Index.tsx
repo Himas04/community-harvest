@@ -4,6 +4,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Heart, MapPin, Truck, ShieldCheck, ArrowRight, Leaf, HandHeart } from "lucide-react";
 import { Navbar } from "@/components/Navbar";
+import { useAuth } from "@/lib/auth";
 
 const features = [
   { icon: Heart, title: "Share Food", desc: "Donate surplus food to people in your community who need it most.", step: "01" },
@@ -20,6 +21,12 @@ const stats = [
 ];
 
 export default function Index() {
+  const { user, role } = useAuth();
+  const dashboardPath = role ? `/dashboard/${role}` : "/";
+  const ctaLink = user ? dashboardPath : "/signup";
+  const ctaText = user ? "Go to Dashboard" : "Get Started";
+  const ctaJoinText = user ? "Go to Dashboard" : "Join Now — It's Free";
+
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -42,11 +49,13 @@ export default function Index() {
           </p>
           <div className="flex flex-col gap-3 sm:flex-row">
             <Button size="lg" className="gap-2 px-8 shadow-lg shadow-primary/20" asChild>
-              <Link to="/signup">Get Started <ArrowRight className="h-4 w-4" /></Link>
+              <Link to={ctaLink}>{ctaText} <ArrowRight className="h-4 w-4" /></Link>
             </Button>
-            <Button size="lg" variant="outline" className="px-8" asChild>
-              <Link to="/about">Learn More</Link>
-            </Button>
+            {!user && (
+              <Button size="lg" variant="outline" className="px-8" asChild>
+                <Link to="/about">Learn More</Link>
+              </Button>
+            )}
           </div>
         </div>
       </section>
@@ -133,7 +142,7 @@ export default function Index() {
             Join LeftoverLove today and help build a community where no food goes to waste.
           </p>
           <Button size="lg" className="mt-8 gap-2 px-10 shadow-lg shadow-primary/20" asChild>
-            <Link to="/signup">Join Now — It's Free <ArrowRight className="h-4 w-4" /></Link>
+            <Link to={ctaLink}>{ctaJoinText} <ArrowRight className="h-4 w-4" /></Link>
           </Button>
         </div>
       </section>
