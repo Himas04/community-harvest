@@ -6,10 +6,12 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocationPicker } from "@/components/LocationPicker";
+import { CategorySelect, DietaryTagsPicker } from "@/components/FoodCategoryFilter";
 import { useAuth } from "@/lib/auth";
 import { fetchListingById, updateFoodListing, uploadFoodImage } from "@/lib/food-listings";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Upload, Loader2 } from "lucide-react";
+import { Label } from "@/components/ui/label";
 
 export default function EditListing() {
   const { id } = useParams<{ id: string }>();
@@ -25,16 +27,22 @@ export default function EditListing() {
   const [longitude, setLongitude] = useState<number | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState("");
+  const [category, setCategory] = useState("");
+  const [dietaryTags, setDietaryTags] = useState<string[]>([]);
 
   useEffect(() => {
     if (!id) return;
-    fetchListingById(id).then((listing) => {
+    fetchListingById(id).then((listing: any) => {
       setTitle(listing.title);
       setDescription(listing.description || "");
       setPickupAddress(listing.pickup_address || "");
       setLatitude(listing.latitude);
       setLongitude(listing.longitude);
       setImagePreview(listing.image_url);
+      setExpiresAt(listing.expires_at ? new Date(listing.expires_at).toISOString().slice(0, 16) : "");
+      setCategory(listing.category || "");
+      setDietaryTags(listing.dietary_tags || []);
       setFetching(false);
     }).catch(() => {
       toast({ title: "Error", description: "Listing not found", variant: "destructive" });
@@ -58,7 +66,10 @@ export default function EditListing() {
         latitude,
         longitude,
         ...(imageUrl ? { image_url: imageUrl } : {}),
-      });
+        expires_at: expiresAt || null,
+        category: category || null,
+        dietary_tags: dietaryTags.length > 0 ? dietaryTags : [],
+      } as any);
       toast({ title: "Updated!", description: "Listing updated successfully." });
       navigate("/dashboard/donor");
     } catch (err: any) {
@@ -89,6 +100,12 @@ export default function EditListing() {
                 <label className="text-sm font-medium">Description</label>
                 <Textarea value={description} onChange={(e) => setDescription(e.target.value)} rows={3} />
               </div>
+              <div className="space-y-2">
+                <Label>Expiry Date & Time</Label>
+                <Input type="datetime-local" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} />
+              </div>
+              <CategorySelect value={category} onChange={setCategory} />
+              <DietaryTagsPicker value={dietaryTags} onChange={setDietaryTags} />
               <div className="space-y-2">
                 <label className="text-sm font-medium">Pickup Address</label>
                 <Input value={pickupAddress} onChange={(e) => setPickupAddress(e.target.value)} />

@@ -9,10 +9,11 @@ import { fetchListingById } from "@/lib/food-listings";
 import { createPickupRequest } from "@/lib/pickup-requests";
 import { createReview, hasReviewed } from "@/lib/reviews";
 import { StarRating } from "@/components/StarRating";
+import { ExpiryBadge } from "@/components/ExpiryBadge";
+import { CategoryBadge, DietaryTagBadges } from "@/components/FoodCategoryFilter";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, MapPin, Clock, MessageSquare } from "lucide-react";
-import type { Tables } from "@/integrations/supabase/types";
 import { FoodMap } from "@/components/FoodMap";
 
 export default function FoodDetail() {
@@ -20,7 +21,7 @@ export default function FoodDetail() {
   const { user, role } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [listing, setListing] = useState<Tables<"food_listings"> | null>(null);
+  const [listing, setListing] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
   const [requesting, setRequesting] = useState(false);
   const [note, setNote] = useState("");
@@ -97,9 +98,15 @@ export default function FoodDetail() {
               <div className="flex items-start justify-between gap-3">
                 <h1 className="text-2xl font-bold">{listing.title}</h1>
                 <Badge className={`${statusColorClass} text-primary-foreground`}>{listing.status}</Badge>
+                <ExpiryBadge expiresAt={listing.expires_at} />
               </div>
 
               {listing.description && <p className="text-muted-foreground">{listing.description}</p>}
+
+              <div className="flex flex-wrap gap-2">
+                <CategoryBadge category={listing.category} />
+                <DietaryTagBadges tags={listing.dietary_tags} />
+              </div>
 
               {listing.pickup_address && (
                 <div className="flex items-center gap-2 text-sm text-muted-foreground">

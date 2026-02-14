@@ -5,43 +5,75 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { FoodMap } from "@/components/FoodMap";
 import { fetchFoodListings, getDistance } from "@/lib/food-listings";
+import { ExpiryBadge } from "@/components/ExpiryBadge";
+import { CategoryBadge, DietaryTagBadges, FOOD_CATEGORIES, DIETARY_TAGS } from "@/components/FoodCategoryFilter";
 import { MapPin, Navigation, Search, Grid, Map as MapIcon } from "lucide-react";
-import type { Tables } from "@/integrations/supabase/types";
+import { supabase } from "@/integrations/supabase/client";
 
 export default function BrowseFood() {
   const navigate = useNavigate();
-  const [listings, setListings] = useState<Tables<"food_listings">[]>([]);
-  const [filtered, setFiltered] = useState<Tables<"food_listings">[]>([]);
+  const [listings, setListings] = useState<any[]>([]);
+  const [filtered, setFiltered] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [maxDistance, setMaxDistance] = useState<number>(50);
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
   const [view, setView] = useState<"grid" | "map">("grid");
   const [locating, setLocating] = useState(false);
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [dietaryFilter, setDietaryFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("newest");
 
   useEffect(() => {
+    // Archive expired listings on load
+    supabase.rpc("archive_expired_listings" as any).then(() => {});
     fetchFoodListings("available").then(setListings).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
   useEffect(() => {
-    let result = listings;
+    let result = [...listings];
 
     if (search) {
       const s = search.toLowerCase();
       result = result.filter((l) => l.title.toLowerCase().includes(s) || l.description?.toLowerCase().includes(s) || l.pickup_address?.toLowerCase().includes(s));
     }
 
+    if (categoryFilter !== "all") {
+      result = result.filter((l) => l.category === categoryFilter);
+    }
+
+    if (dietaryFilter !== "all") {
+      result = result.filter((l) => l.dietary_tags?.includes(dietaryFilter));
+    }
+
     if (userLocation) {
       result = result
         .filter((l) => l.latitude && l.longitude)
-        .filter((l) => getDistance(userLocation.lat, userLocation.lng, l.latitude!, l.longitude!) <= maxDistance)
-        .sort((a, b) => getDistance(userLocation.lat, userLocation.lng, a.latitude!, a.longitude!) - getDistance(userLocation.lat, userLocation.lng, b.latitude!, b.longitude!));
+        .filter((l) => getDistance(userLocation.lat, userLocation.lng, l.latitude!, l.longitude!) <= maxDistance);
+    }
+
+    // Sort
+    if (sortBy === "nearest" && userLocation) {
+      result.sort((a, b) => {
+        const da = a.latitude && a.longitude ? getDistance(userLocation.lat, userLocation.lng, a.latitude, a.longitude) : Infinity;
+        const db = b.latitude && b.longitude ? getDistance(userLocation.lat, userLocation.lng, b.latitude, b.longitude) : Infinity;
+        return da - db;
+      });
+    } else if (sortBy === "expiry") {
+      result.sort((a, b) => {
+        if (!a.expires_at) return 1;
+        if (!b.expires_at) return -1;
+        return new Date(a.expires_at).getTime() - new Date(b.expires_at).getTime();
+      });
+    } else {
+      result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
     }
 
     setFiltered(result);
-  }, [listings, search, userLocation, maxDistance]);
+  }, [listings, search, userLocation, maxDistance, categoryFilter, dietaryFilter, sortBy]);
 
   const handleUseLocation = () => {
     if (!navigator.geolocation) return;
@@ -68,11 +100,38 @@ export default function BrowseFood() {
           </div>
         </div>
 
-        <div className="mb-6 flex flex-col gap-3 sm:flex-row">
-          <div className="relative flex-1">
+        {/* Filters row */}
+        <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
+          <div className="relative flex-1 min-w-[200px]">
             <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             <Input className="pl-9" placeholder="Search food listings..." value={search} onChange={(e) => setSearch(e.target.value)} />
           </div>
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Category" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Categories</SelectItem>
+              {FOOD_CATEGORIES.map((c) => (
+                <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={dietaryFilter} onValueChange={setDietaryFilter}>
+            <SelectTrigger className="w-[140px]"><SelectValue placeholder="Dietary" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">All Dietary</SelectItem>
+              {DIETARY_TAGS.map((t) => (
+                <SelectItem key={t} value={t}>{t}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Select value={sortBy} onValueChange={setSortBy}>
+            <SelectTrigger className="w-[130px]"><SelectValue placeholder="Sort" /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="newest">Newest</SelectItem>
+              <SelectItem value="expiry">Expiring Soon</SelectItem>
+              {userLocation && <SelectItem value="nearest">Nearest</SelectItem>}
+            </SelectContent>
+          </Select>
           <Button variant="outline" onClick={handleUseLocation} disabled={locating}>
             <Navigation className="mr-1 h-4 w-4" />
             {locating ? "Locating..." : userLocation ? "Update Location" : "Use My Location"}
@@ -101,9 +160,13 @@ export default function BrowseFood() {
                 <CardContent className="p-4">
                   <div className="mb-2 flex items-start justify-between gap-2">
                     <h3 className="font-semibold line-clamp-1">{listing.title}</h3>
-                    <Badge variant="secondary" className="shrink-0 text-xs">{listing.status}</Badge>
+                    <ExpiryBadge expiresAt={listing.expires_at} />
                   </div>
                   {listing.description && <p className="mb-2 text-sm text-muted-foreground line-clamp-2">{listing.description}</p>}
+                  <div className="mb-2 flex flex-wrap gap-1">
+                    <CategoryBadge category={listing.category} />
+                    <DietaryTagBadges tags={listing.dietary_tags} />
+                  </div>
                   {listing.pickup_address && (
                     <p className="flex items-center gap-1 text-xs text-muted-foreground">
                       <MapPin className="h-3 w-3" /> {listing.pickup_address}

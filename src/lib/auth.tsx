@@ -70,8 +70,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({ email, password });
     if (error) throw error;
+
+    // Check if user is banned
+    const { data: profile } = await supabase
+      .from("profiles")
+      .select("is_banned, ban_reason")
+      .eq("user_id", data.user.id)
+      .single();
+
+    if (profile?.is_banned) {
+      await supabase.auth.signOut();
+      throw new Error(
+        `Your account has been suspended.${profile.ban_reason ? ` Reason: ${profile.ban_reason}` : ""} Contact support for assistance.`
+      );
+    }
   };
 
   const signOut = async () => {

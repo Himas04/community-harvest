@@ -6,11 +6,13 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { LocationPicker } from "@/components/LocationPicker";
+import { CategorySelect, DietaryTagsPicker } from "@/components/FoodCategoryFilter";
 import { useAuth } from "@/lib/auth";
 import { createFoodListing, uploadFoodImage } from "@/lib/food-listings";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Upload, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { Label } from "@/components/ui/label";
 
 export default function CreateListing() {
   const { user } = useAuth();
@@ -24,6 +26,9 @@ export default function CreateListing() {
   const [longitude, setLongitude] = useState<number | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [expiresAt, setExpiresAt] = useState("");
+  const [category, setCategory] = useState("");
+  const [dietaryTags, setDietaryTags] = useState<string[]>([]);
 
   const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -52,7 +57,10 @@ export default function CreateListing() {
         latitude,
         longitude,
         image_url: imageUrl,
-      });
+        expires_at: expiresAt || null,
+        category: category || null,
+        dietary_tags: dietaryTags.length > 0 ? dietaryTags : [],
+      } as any);
 
       toast({ title: "Listing created!", description: "Your food listing is now available." });
       navigate("/dashboard/donor");
@@ -86,6 +94,14 @@ export default function CreateListing() {
                 <label className="text-sm font-medium">Description</label>
                 <Textarea value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe the food, quantity, dietary info..." rows={3} />
               </div>
+
+              <div className="space-y-2">
+                <Label>Expiry Date & Time</Label>
+                <Input type="datetime-local" value={expiresAt} onChange={(e) => setExpiresAt(e.target.value)} min={new Date().toISOString().slice(0, 16)} />
+              </div>
+
+              <CategorySelect value={category} onChange={setCategory} />
+              <DietaryTagsPicker value={dietaryTags} onChange={setDietaryTags} />
 
               <div className="space-y-2">
                 <label className="text-sm font-medium">Pickup Address</label>
