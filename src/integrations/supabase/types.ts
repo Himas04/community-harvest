@@ -14,6 +14,72 @@ export type Database = {
   }
   public: {
     Tables: {
+      complaints: {
+        Row: {
+          admin_reply: string | null
+          created_at: string
+          id: string
+          message: string
+          read: boolean
+          status: string
+          subject: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_reply?: string | null
+          created_at?: string
+          id?: string
+          message: string
+          read?: boolean
+          status?: string
+          subject: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_reply?: string | null
+          created_at?: string
+          id?: string
+          message?: string
+          read?: boolean
+          status?: string
+          subject?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      contact_messages: {
+        Row: {
+          created_at: string
+          email: string
+          id: string
+          message: string
+          name: string
+          phone: string | null
+          read: boolean
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          id?: string
+          message: string
+          name: string
+          phone?: string | null
+          read?: boolean
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          id?: string
+          message?: string
+          name?: string
+          phone?: string | null
+          read?: boolean
+        }
+        Relationships: []
+      }
       food_listings: {
         Row: {
           created_at: string
