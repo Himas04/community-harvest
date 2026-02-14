@@ -2,7 +2,7 @@ import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/lib/auth";
 import { NotificationBell } from "@/components/NotificationBell";
-import { Heart, LogOut, User, Menu, X, MessageSquare } from "lucide-react";
+import { Heart, LogOut, User, Menu, X, MessageSquare, MessageCircleWarning } from "lucide-react";
 import { useState } from "react";
 
 export function Navbar() {
@@ -30,6 +30,9 @@ export function Navbar() {
           <Link to="/about" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
             About
           </Link>
+          <Link to="/contact" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
+            Contact
+          </Link>
           {user ? (
             <>
               <Link to={dashboardPath} className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -37,6 +40,9 @@ export function Navbar() {
               </Link>
               <Link to="/messages" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
                 <MessageSquare className="h-4 w-4" />
+              </Link>
+              <Link to="/complaints" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors" title="Complaints">
+                <MessageCircleWarning className="h-4 w-4" />
               </Link>
               <NotificationBell />
               <Link to="/profile" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">
@@ -70,10 +76,12 @@ export function Navbar() {
         <div className="border-t bg-background p-4 md:hidden">
           <div className="flex flex-col gap-3">
             <Link to="/about" className="text-sm font-medium" onClick={() => setMobileOpen(false)}>About</Link>
+            <Link to="/contact" className="text-sm font-medium" onClick={() => setMobileOpen(false)}>Contact</Link>
             {user ? (
               <>
                 <Link to={dashboardPath} className="text-sm font-medium" onClick={() => setMobileOpen(false)}>Dashboard</Link>
                 <Link to="/messages" className="text-sm font-medium" onClick={() => setMobileOpen(false)}>Messages</Link>
+                <Link to="/complaints" className="text-sm font-medium" onClick={() => setMobileOpen(false)}>Complaints</Link>
                 <Link to="/profile" className="text-sm font-medium" onClick={() => setMobileOpen(false)}>Profile</Link>
                 <Button variant="ghost" size="sm" onClick={() => { handleSignOut(); setMobileOpen(false); }}>Sign out</Button>
               </>

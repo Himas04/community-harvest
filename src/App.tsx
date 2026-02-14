@@ -18,6 +18,8 @@ import EditListing from "./pages/food/EditListing";
 import FoodDetail from "./pages/food/FoodDetail";
 import BrowseFood from "./pages/food/BrowseFood";
 import Messages from "./pages/Messages";
+import Contact from "./pages/Contact";
+import Complaints from "./pages/Complaints";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -59,6 +61,8 @@ const App = () => (
             <Route path="/browse" element={<ProtectedRoute><BrowseFood /></ProtectedRoute>} />
             <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
             <Route path="/messages/:listingId/:otherUserId" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
+            <Route path="/contact" element={<Contact />} />
+            <Route path="/complaints" element={<ProtectedRoute><Complaints /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </AuthProvider>

@@ -7,6 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
 import { StarRating } from "@/components/StarRating";
 import { useToast } from "@/hooks/use-toast";
 import { fetchFoodListings } from "@/lib/food-listings";
@@ -14,7 +15,11 @@ import { fetchAllRequestsAdmin, statusLabel, statusColor, type PickupRequest } f
 import { fetchAllUsers, changeUserRole, deleteListingAdmin, deleteReviewAdmin, fetchAllReviewsAdmin, type UserWithRole } from "@/lib/admin";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables as DbTables } from "@/integrations/supabase/types";
-import { Users, UtensilsCrossed, Star, Truck, Trash2, ShieldCheck } from "lucide-react";
+import { Users, UtensilsCrossed, Star, Truck, Trash2, ShieldCheck, Mail, MessageCircleWarning, BarChart3, Eye, Reply } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+
+type ContactMsg = { id: string; name: string; email: string; phone: string | null; message: string; read: boolean; created_at: string };
+type Complaint = { id: string; user_id: string; subject: string; message: string; status: string; admin_reply: string | null; read: boolean; created_at: string; user_name?: string };
 
 export default function AdminDashboard() {
   const { toast } = useToast();
@@ -22,10 +27,13 @@ export default function AdminDashboard() {
   const [listings, setListings] = useState<DbTables<"food_listings">[]>([]);
   const [requests, setRequests] = useState<PickupRequest[]>([]);
   const [reviews, setReviews] = useState<any[]>([]);
+  const [contacts, setContacts] = useState<ContactMsg[]>([]);
+  const [complaints, setComplaints] = useState<Complaint[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Confirmation dialog
   const [confirmAction, setConfirmAction] = useState<{ title: string; desc: string; action: () => Promise<void> } | null>(null);
+  const [replyDialog, setReplyDialog] = useState<{ id: string; subject: string } | null>(null);
+  const [replyText, setReplyText] = useState("");
 
   const loadData = () => {
     setLoading(true);
@@ -34,33 +42,63 @@ export default function AdminDashboard() {
       fetchFoodListings(),
       fetchAllRequestsAdmin(),
       fetchAllReviewsAdmin(),
+      supabase.from("contact_messages").select("*").order("created_at", { ascending: false }),
+      supabase.from("complaints").select("*").order("created_at", { ascending: false }),
     ])
-      .then(([u, l, r, rev]) => {
+      .then(async ([u, l, r, rev, contactRes, complaintRes]) => {
         setUsers(u);
         setListings(l);
         setRequests(r);
         setReviews(rev);
+        setContacts((contactRes.data as ContactMsg[]) ?? []);
+
+        const rawComplaints = (complaintRes.data ?? []) as Complaint[];
+        // Fetch user names for complaints
+        const userIds = [...new Set(rawComplaints.map((c) => c.user_id))];
+        if (userIds.length > 0) {
+          const { data: profiles } = await supabase.from("profiles").select("user_id, name").in("user_id", userIds);
+          const nameMap = new Map((profiles ?? []).map((p: any) => [p.user_id, p.name ?? "User"]));
+          setComplaints(rawComplaints.map((c) => ({ ...c, user_name: nameMap.get(c.user_id) ?? "User" })));
+        } else {
+          setComplaints(rawComplaints);
+        }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { loadData(); }, []);
 
-  // Realtime
   useEffect(() => {
     const channel = supabase
       .channel("admin-realtime")
       .on("postgres_changes", { event: "*", schema: "public", table: "pickup_requests" }, () => loadData())
       .on("postgres_changes", { event: "*", schema: "public", table: "food_listings" }, () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "complaints" }, () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "contact_messages" }, () => loadData())
       .subscribe();
     return () => { supabase.removeChannel(channel); };
   }, []);
 
   const activePickups = requests.filter((r) => r.status === "accepted" || r.status === "picked_up").length;
   const pendingRequests = requests.filter((r) => r.status === "pending").length;
+
+  // Chart data
+  const roleCounts = ["admin", "donor", "receiver", "volunteer"].map((r) => ({
+    name: r.charAt(0).toUpperCase() + r.slice(1),
+    value: users.filter((u) => u.role === r).length,
+  }));
+  const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "#22c55e", "#f59e0b"];
+
+  const listingStatusData = ["available", "claimed", "completed"].map((s) => ({
+    name: s.charAt(0).toUpperCase() + s.slice(1),
+    count: listings.filter((l) => l.status === s).length,
+  }));
+
+  const requestStatusData = ["pending", "accepted", "picked_up", "delivered", "cancelled"].map((s) => ({
+    name: s.replace("_", " ").replace(/\b\w/g, (c) => c.toUpperCase()),
+    count: requests.filter((r) => r.status === s).length,
+  }));
 
   const handleRoleChange = async (userId: string, newRole: string) => {
     try {
@@ -75,12 +113,8 @@ export default function AdminDashboard() {
   const handleDeleteListing = (id: string, title: string) => {
     setConfirmAction({
       title: "Delete Listing",
-      desc: `Are you sure you want to delete "${title}"? This cannot be undone.`,
-      action: async () => {
-        await deleteListingAdmin(id);
-        toast({ title: "Listing deleted" });
-        loadData();
-      },
+      desc: `Are you sure you want to delete "${title}"?`,
+      action: async () => { await deleteListingAdmin(id); toast({ title: "Listing deleted" }); loadData(); },
     });
   };
 
@@ -88,21 +122,44 @@ export default function AdminDashboard() {
     setConfirmAction({
       title: "Delete Review",
       desc: "Are you sure you want to remove this review?",
+      action: async () => { await deleteReviewAdmin(id); toast({ title: "Review deleted" }); loadData(); },
+    });
+  };
+
+  const handleDeleteContact = (id: string) => {
+    setConfirmAction({
+      title: "Delete Contact Message",
+      desc: "Delete this contact message?",
       action: async () => {
-        await deleteReviewAdmin(id);
-        toast({ title: "Review deleted" });
-        loadData();
+        await supabase.from("contact_messages").delete().eq("id", id);
+        toast({ title: "Deleted" }); loadData();
+      },
+    });
+  };
+
+  const handleReplyComplaint = async () => {
+    if (!replyDialog || !replyText.trim()) return;
+    await supabase.from("complaints").update({ admin_reply: replyText.trim(), status: "resolved" }).eq("id", replyDialog.id);
+    toast({ title: "Reply sent" });
+    setReplyDialog(null);
+    setReplyText("");
+    loadData();
+  };
+
+  const handleDeleteComplaint = (id: string) => {
+    setConfirmAction({
+      title: "Delete Complaint",
+      desc: "Delete this complaint?",
+      action: async () => {
+        await supabase.from("complaints").delete().eq("id", id);
+        toast({ title: "Deleted" }); loadData();
       },
     });
   };
 
   const confirmExec = async () => {
     if (!confirmAction) return;
-    try {
-      await confirmAction.action();
-    } catch {
-      toast({ title: "Action failed", variant: "destructive" });
-    }
+    try { await confirmAction.action(); } catch { toast({ title: "Action failed", variant: "destructive" }); }
     setConfirmAction(null);
   };
 
@@ -111,6 +168,8 @@ export default function AdminDashboard() {
     { label: "Listings", value: listings.length, icon: UtensilsCrossed, color: "text-primary" },
     { label: "Active Pickups", value: activePickups, icon: Truck, color: "text-primary" },
     { label: "Pending Requests", value: pendingRequests, icon: ShieldCheck, color: "text-accent" },
+    { label: "Contacts", value: contacts.length, icon: Mail, color: "text-primary" },
+    { label: "Complaints", value: complaints.filter((c) => c.status === "open").length, icon: MessageCircleWarning, color: "text-destructive" },
   ];
 
   return (
@@ -120,7 +179,7 @@ export default function AdminDashboard() {
         <h1 className="mb-6 text-3xl font-bold">Admin Dashboard</h1>
 
         {/* Stats */}
-        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
           {statCards.map((s) => (
             <Card key={s.label}>
               <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -134,13 +193,60 @@ export default function AdminDashboard() {
           ))}
         </div>
 
+        {/* Charts */}
+        <div className="mb-8 grid gap-6 md:grid-cols-3">
+          <Card>
+            <CardHeader><CardTitle className="text-sm flex items-center gap-2"><BarChart3 className="h-4 w-4" /> Users by Role</CardTitle></CardHeader>
+            <CardContent className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <PieChart>
+                  <Pie data={roleCounts} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, value }) => `${name}: ${value}`}>
+                    {roleCounts.map((_, i) => <Cell key={i} fill={PIE_COLORS[i % PIE_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-sm">Listing Status</CardTitle></CardHeader>
+            <CardContent className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={listingStatusData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader><CardTitle className="text-sm">Request Status</CardTitle></CardHeader>
+            <CardContent className="h-[220px]">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={requestStatusData}>
+                  <CartesianGrid strokeDasharray="3 3" />
+                  <XAxis dataKey="name" tick={{ fontSize: 10 }} />
+                  <YAxis allowDecimals={false} />
+                  <Tooltip />
+                  <Bar dataKey="count" fill="hsl(var(--accent))" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+        </div>
+
         {/* Tabs */}
         <Tabs defaultValue="users" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="listings">Listings</TabsTrigger>
             <TabsTrigger value="requests">Requests</TabsTrigger>
             <TabsTrigger value="reviews">Reviews</TabsTrigger>
+            <TabsTrigger value="contacts">Contacts</TabsTrigger>
+            <TabsTrigger value="complaints">Complaints</TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
@@ -164,9 +270,7 @@ export default function AdminDashboard() {
                       {users.map((u) => (
                         <TableRow key={u.user_id}>
                           <TableCell className="font-medium">{u.name || "—"}</TableCell>
-                          <TableCell>
-                            <Badge variant="secondary" className="capitalize">{u.role || "none"}</Badge>
-                          </TableCell>
+                          <TableCell><Badge variant="secondary" className="capitalize">{u.role || "none"}</Badge></TableCell>
                           <TableCell className="text-muted-foreground text-sm">{new Date(u.created_at).toLocaleDateString()}</TableCell>
                           <TableCell>
                             <Select defaultValue={u.role ?? ""} onValueChange={(v) => handleRoleChange(u.user_id, v)}>
@@ -209,9 +313,7 @@ export default function AdminDashboard() {
                       {listings.map((l) => (
                         <TableRow key={l.id}>
                           <TableCell className="font-medium max-w-[200px] truncate">{l.title}</TableCell>
-                          <TableCell>
-                            <Badge variant="outline" className="capitalize">{l.status}</Badge>
-                          </TableCell>
+                          <TableCell><Badge variant="outline" className="capitalize">{l.status}</Badge></TableCell>
                           <TableCell className="text-muted-foreground text-sm">{new Date(l.created_at).toLocaleDateString()}</TableCell>
                           <TableCell>
                             <Button variant="ghost" size="icon" onClick={() => handleDeleteListing(l.id, l.title)}>
@@ -248,9 +350,7 @@ export default function AdminDashboard() {
                       {requests.map((r) => (
                         <TableRow key={r.id}>
                           <TableCell className="font-medium max-w-[200px] truncate">{r.food_listings?.title || "—"}</TableCell>
-                          <TableCell>
-                            <Badge className={`${statusColor(r.status)} text-white text-xs`}>{statusLabel(r.status)}</Badge>
-                          </TableCell>
+                          <TableCell><Badge className={`${statusColor(r.status)} text-white text-xs`}>{statusLabel(r.status)}</Badge></TableCell>
                           <TableCell className="text-sm text-muted-foreground">{r.volunteer_id ? "Assigned" : "—"}</TableCell>
                           <TableCell className="text-muted-foreground text-sm">{new Date(r.created_at).toLocaleDateString()}</TableCell>
                         </TableRow>
@@ -300,6 +400,93 @@ export default function AdminDashboard() {
               </CardContent>
             </Card>
           </TabsContent>
+
+          {/* Contacts Tab */}
+          <TabsContent value="contacts">
+            <Card>
+              <CardHeader><CardTitle>Contact Messages</CardTitle></CardHeader>
+              <CardContent>
+                {loading ? <p className="text-muted-foreground">Loading...</p> : contacts.length === 0 ? (
+                  <p className="text-muted-foreground">No contact messages yet.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Phone</TableHead>
+                        <TableHead>Message</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {contacts.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium">{c.name}</TableCell>
+                          <TableCell className="text-sm">{c.email}</TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{c.phone || "—"}</TableCell>
+                          <TableCell className="max-w-[200px] truncate text-sm">{c.message}</TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{new Date(c.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteContact(c.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Complaints Tab */}
+          <TabsContent value="complaints">
+            <Card>
+              <CardHeader><CardTitle>User Complaints</CardTitle></CardHeader>
+              <CardContent>
+                {loading ? <p className="text-muted-foreground">Loading...</p> : complaints.length === 0 ? (
+                  <p className="text-muted-foreground">No complaints yet.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>User</TableHead>
+                        <TableHead>Subject</TableHead>
+                        <TableHead>Message</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Date</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {complaints.map((c) => (
+                        <TableRow key={c.id}>
+                          <TableCell className="font-medium text-sm">{c.user_name || "User"}</TableCell>
+                          <TableCell className="text-sm">{c.subject}</TableCell>
+                          <TableCell className="max-w-[180px] truncate text-sm text-muted-foreground">{c.message}</TableCell>
+                          <TableCell>
+                            <Badge className={`${c.status === "open" ? "bg-yellow-500" : "bg-green-500"} text-white text-xs capitalize`}>{c.status}</Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{new Date(c.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell className="flex gap-1">
+                            <Button variant="ghost" size="icon" onClick={() => { setReplyDialog({ id: c.id, subject: c.subject }); setReplyText(c.admin_reply || ""); }}>
+                              <Reply className="h-4 w-4 text-primary" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteComplaint(c.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
         </Tabs>
       </div>
 
@@ -313,6 +500,21 @@ export default function AdminDashboard() {
           <DialogFooter>
             <Button variant="outline" onClick={() => setConfirmAction(null)}>Cancel</Button>
             <Button variant="destructive" onClick={confirmExec}>Confirm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reply Dialog */}
+      <Dialog open={!!replyDialog} onOpenChange={() => setReplyDialog(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Reply to: {replyDialog?.subject}</DialogTitle>
+            <DialogDescription>Your reply will be visible to the user.</DialogDescription>
+          </DialogHeader>
+          <Textarea placeholder="Type your reply..." value={replyText} onChange={(e) => setReplyText(e.target.value)} rows={4} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setReplyDialog(null)}>Cancel</Button>
+            <Button onClick={handleReplyComplaint} disabled={!replyText.trim()}>Send Reply</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
