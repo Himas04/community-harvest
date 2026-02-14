@@ -2,31 +2,116 @@ import { useEffect, useState } from "react";
 import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { StarRating } from "@/components/StarRating";
+import { useToast } from "@/hooks/use-toast";
 import { fetchFoodListings } from "@/lib/food-listings";
 import { fetchAllRequestsAdmin, statusLabel, statusColor, type PickupRequest } from "@/lib/pickup-requests";
+import { fetchAllUsers, changeUserRole, deleteListingAdmin, deleteReviewAdmin, fetchAllReviewsAdmin, type UserWithRole } from "@/lib/admin";
 import { supabase } from "@/integrations/supabase/client";
-import type { Tables } from "@/integrations/supabase/types";
+import type { Tables as DbTables } from "@/integrations/supabase/types";
+import { Users, UtensilsCrossed, Star, Truck, Trash2, ShieldCheck } from "lucide-react";
 
 export default function AdminDashboard() {
-  const [users, setUsers] = useState(0);
-  const [listings, setListings] = useState<Tables<"food_listings">[]>([]);
+  const { toast } = useToast();
+  const [users, setUsers] = useState<UserWithRole[]>([]);
+  const [listings, setListings] = useState<DbTables<"food_listings">[]>([]);
   const [requests, setRequests] = useState<PickupRequest[]>([]);
+  const [reviews, setReviews] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
+  // Confirmation dialog
+  const [confirmAction, setConfirmAction] = useState<{ title: string; desc: string; action: () => Promise<void> } | null>(null);
+
+  const loadData = () => {
+    setLoading(true);
     Promise.all([
-      supabase.from("profiles").select("id", { count: "exact", head: true }),
+      fetchAllUsers(),
       fetchFoodListings(),
       fetchAllRequestsAdmin(),
-    ]).then(([profileRes, l, r]) => {
-      setUsers(profileRes.count ?? 0);
-      setListings(l);
-      setRequests(r);
-    }).catch(() => {}).finally(() => setLoading(false));
+      fetchAllReviewsAdmin(),
+    ])
+      .then(([u, l, r, rev]) => {
+        setUsers(u);
+        setListings(l);
+        setRequests(r);
+        setReviews(rev);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  // Realtime
+  useEffect(() => {
+    const channel = supabase
+      .channel("admin-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "pickup_requests" }, () => loadData())
+      .on("postgres_changes", { event: "*", schema: "public", table: "food_listings" }, () => loadData())
+      .subscribe();
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const activePickups = requests.filter((r) => r.status === "accepted" || r.status === "picked_up").length;
   const pendingRequests = requests.filter((r) => r.status === "pending").length;
+
+  const handleRoleChange = async (userId: string, newRole: string) => {
+    try {
+      await changeUserRole(userId, newRole);
+      toast({ title: "Role updated" });
+      loadData();
+    } catch {
+      toast({ title: "Error updating role", variant: "destructive" });
+    }
+  };
+
+  const handleDeleteListing = (id: string, title: string) => {
+    setConfirmAction({
+      title: "Delete Listing",
+      desc: `Are you sure you want to delete "${title}"? This cannot be undone.`,
+      action: async () => {
+        await deleteListingAdmin(id);
+        toast({ title: "Listing deleted" });
+        loadData();
+      },
+    });
+  };
+
+  const handleDeleteReview = (id: string) => {
+    setConfirmAction({
+      title: "Delete Review",
+      desc: "Are you sure you want to remove this review?",
+      action: async () => {
+        await deleteReviewAdmin(id);
+        toast({ title: "Review deleted" });
+        loadData();
+      },
+    });
+  };
+
+  const confirmExec = async () => {
+    if (!confirmAction) return;
+    try {
+      await confirmAction.action();
+    } catch {
+      toast({ title: "Action failed", variant: "destructive" });
+    }
+    setConfirmAction(null);
+  };
+
+  const statCards = [
+    { label: "Users", value: users.length, icon: Users, color: "text-primary" },
+    { label: "Listings", value: listings.length, icon: UtensilsCrossed, color: "text-primary" },
+    { label: "Active Pickups", value: activePickups, icon: Truck, color: "text-primary" },
+    { label: "Pending Requests", value: pendingRequests, icon: ShieldCheck, color: "text-accent" },
+  ];
 
   return (
     <div className="min-h-screen">
@@ -34,38 +119,203 @@ export default function AdminDashboard() {
       <div className="container mx-auto px-4 py-8">
         <h1 className="mb-6 text-3xl font-bold">Admin Dashboard</h1>
 
+        {/* Stats */}
         <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Users</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{loading ? "..." : users}</p><p className="text-xs text-muted-foreground">Registered users</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Listings</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{loading ? "..." : listings.length}</p><p className="text-xs text-muted-foreground">Food listings</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Active Pickups</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{loading ? "..." : activePickups}</p><p className="text-xs text-muted-foreground">In progress</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Pending Requests</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-accent">{loading ? "..." : pendingRequests}</p><p className="text-xs text-muted-foreground">Awaiting volunteers</p></CardContent></Card>
+          {statCards.map((s) => (
+            <Card key={s.label}>
+              <CardHeader className="flex flex-row items-center justify-between pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">{s.label}</CardTitle>
+                <s.icon className={`h-4 w-4 ${s.color}`} />
+              </CardHeader>
+              <CardContent>
+                <p className={`text-3xl font-bold ${s.color}`}>{loading ? "..." : s.value}</p>
+              </CardContent>
+            </Card>
+          ))}
         </div>
 
-        {/* Recent Requests */}
-        <h2 className="mb-4 text-xl font-semibold">Recent Pickup Requests</h2>
-        {loading ? (
-          <p className="text-muted-foreground">Loading...</p>
-        ) : requests.length === 0 ? (
-          <Card><CardContent className="py-8 text-center text-muted-foreground">No pickup requests yet.</CardContent></Card>
-        ) : (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {requests.slice(0, 9).map((req) => (
-              <Card key={req.id}>
-                <CardContent className="p-4">
-                  <div className="mb-2 flex items-start justify-between gap-2">
-                    <h3 className="font-semibold line-clamp-1">{req.food_listings?.title || "Listing"}</h3>
-                    <Badge className={`${statusColor(req.status)} text-white shrink-0 text-xs`}>{statusLabel(req.status)}</Badge>
-                  </div>
-                  <p className="text-xs text-muted-foreground">Created {new Date(req.created_at).toLocaleDateString()}</p>
-                  {req.volunteer_id && <p className="mt-1 text-xs text-muted-foreground">Volunteer assigned</p>}
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        )}
+        {/* Tabs */}
+        <Tabs defaultValue="users" className="space-y-4">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="users">Users</TabsTrigger>
+            <TabsTrigger value="listings">Listings</TabsTrigger>
+            <TabsTrigger value="requests">Requests</TabsTrigger>
+            <TabsTrigger value="reviews">Reviews</TabsTrigger>
+          </TabsList>
 
-        <p className="mt-8 text-muted-foreground">Full admin moderation tools coming in Phase 5.</p>
+          {/* Users Tab */}
+          <TabsContent value="users">
+            <Card>
+              <CardHeader><CardTitle>User Management</CardTitle></CardHeader>
+              <CardContent>
+                {loading ? <p className="text-muted-foreground">Loading...</p> : users.length === 0 ? (
+                  <p className="text-muted-foreground">No users yet.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Name</TableHead>
+                        <TableHead>Role</TableHead>
+                        <TableHead>Joined</TableHead>
+                        <TableHead>Change Role</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {users.map((u) => (
+                        <TableRow key={u.user_id}>
+                          <TableCell className="font-medium">{u.name || "—"}</TableCell>
+                          <TableCell>
+                            <Badge variant="secondary" className="capitalize">{u.role || "none"}</Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{new Date(u.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <Select defaultValue={u.role ?? ""} onValueChange={(v) => handleRoleChange(u.user_id, v)}>
+                              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="admin">Admin</SelectItem>
+                                <SelectItem value="donor">Donor</SelectItem>
+                                <SelectItem value="receiver">Receiver</SelectItem>
+                                <SelectItem value="volunteer">Volunteer</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Listings Tab */}
+          <TabsContent value="listings">
+            <Card>
+              <CardHeader><CardTitle>Food Listings</CardTitle></CardHeader>
+              <CardContent>
+                {loading ? <p className="text-muted-foreground">Loading...</p> : listings.length === 0 ? (
+                  <p className="text-muted-foreground">No listings yet.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Title</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Created</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {listings.map((l) => (
+                        <TableRow key={l.id}>
+                          <TableCell className="font-medium max-w-[200px] truncate">{l.title}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize">{l.status}</Badge>
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{new Date(l.created_at).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteListing(l.id, l.title)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Requests Tab */}
+          <TabsContent value="requests">
+            <Card>
+              <CardHeader><CardTitle>Pickup Requests</CardTitle></CardHeader>
+              <CardContent>
+                {loading ? <p className="text-muted-foreground">Loading...</p> : requests.length === 0 ? (
+                  <p className="text-muted-foreground">No requests yet.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Listing</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Volunteer</TableHead>
+                        <TableHead>Created</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {requests.map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell className="font-medium max-w-[200px] truncate">{r.food_listings?.title || "—"}</TableCell>
+                          <TableCell>
+                            <Badge className={`${statusColor(r.status)} text-white text-xs`}>{statusLabel(r.status)}</Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground">{r.volunteer_id ? "Assigned" : "—"}</TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{new Date(r.created_at).toLocaleDateString()}</TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Reviews Tab */}
+          <TabsContent value="reviews">
+            <Card>
+              <CardHeader><CardTitle>Review Moderation</CardTitle></CardHeader>
+              <CardContent>
+                {loading ? <p className="text-muted-foreground">Loading...</p> : reviews.length === 0 ? (
+                  <p className="text-muted-foreground">No reviews yet.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Reviewer</TableHead>
+                        <TableHead>Reviewed</TableHead>
+                        <TableHead>Rating</TableHead>
+                        <TableHead>Comment</TableHead>
+                        <TableHead>Actions</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {reviews.map((r) => (
+                        <TableRow key={r.id}>
+                          <TableCell className="text-sm">{r.reviewer_name}</TableCell>
+                          <TableCell className="text-sm">{r.reviewed_name}</TableCell>
+                          <TableCell><StarRating value={r.rating} readonly size="sm" /></TableCell>
+                          <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">{r.comment || "—"}</TableCell>
+                          <TableCell>
+                            <Button variant="ghost" size="icon" onClick={() => handleDeleteReview(r.id)}>
+                              <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+        </Tabs>
       </div>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={!!confirmAction} onOpenChange={() => setConfirmAction(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{confirmAction?.title}</DialogTitle>
+            <DialogDescription>{confirmAction?.desc}</DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setConfirmAction(null)}>Cancel</Button>
+            <Button variant="destructive" onClick={confirmExec}>Confirm</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
