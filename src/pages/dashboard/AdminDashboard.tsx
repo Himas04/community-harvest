@@ -13,11 +13,12 @@ import { StarRating } from "@/components/StarRating";
 import { useToast } from "@/hooks/use-toast";
 import { fetchFoodListings } from "@/lib/food-listings";
 import { fetchAllRequestsAdmin, statusLabel, statusColor, type PickupRequest } from "@/lib/pickup-requests";
-import { fetchAllUsers, changeUserRole, deleteListingAdmin, deleteReviewAdmin, fetchAllReviewsAdmin, type UserWithRole } from "@/lib/admin";
+import { fetchAllUsers, changeUserRole, deleteListingAdmin, deleteReviewAdmin, fetchAllReviewsAdmin, fetchAuditLog, type UserWithRole, type AuditLogEntry } from "@/lib/admin";
+import { BanUserDialog } from "@/components/BanUserDialog";
 import { supabase } from "@/integrations/supabase/client";
 import type { Tables as DbTables } from "@/integrations/supabase/types";
-import { Users, UtensilsCrossed, Star, Truck, Trash2, ShieldCheck, Mail, MessageCircleWarning, BarChart3, Eye, Reply, LogOut, Shield } from "lucide-react";
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import { Users, UtensilsCrossed, Truck, Trash2, ShieldCheck, Mail, MessageCircleWarning, BarChart3, Reply, LogOut, Shield } from "lucide-react";
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts";
 
 type ContactMsg = { id: string; name: string; email: string; phone: string | null; message: string; read: boolean; created_at: string };
 type Complaint = { id: string; user_id: string; subject: string; message: string; status: string; admin_reply: string | null; read: boolean; created_at: string; user_name?: string };
@@ -30,6 +31,7 @@ export default function AdminDashboard() {
   const [reviews, setReviews] = useState<any[]>([]);
   const [contacts, setContacts] = useState<ContactMsg[]>([]);
   const [complaints, setComplaints] = useState<Complaint[]>([]);
+  const [auditLog, setAuditLog] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   const [confirmAction, setConfirmAction] = useState<{ title: string; desc: string; action: () => Promise<void> } | null>(null);
@@ -45,13 +47,15 @@ export default function AdminDashboard() {
       fetchAllReviewsAdmin(),
       supabase.from("contact_messages").select("*").order("created_at", { ascending: false }),
       supabase.from("complaints").select("*").order("created_at", { ascending: false }),
+      fetchAuditLog(),
     ])
-      .then(async ([u, l, r, rev, contactRes, complaintRes]) => {
+      .then(async ([u, l, r, rev, contactRes, complaintRes, audit]) => {
         setUsers(u);
         setListings(l);
         setRequests(r);
         setReviews(rev);
         setContacts((contactRes.data as ContactMsg[]) ?? []);
+        setAuditLog(audit);
 
         const rawComplaints = (complaintRes.data ?? []) as Complaint[];
         // Fetch user names for complaints
@@ -264,13 +268,14 @@ export default function AdminDashboard() {
 
         {/* Tabs */}
         <Tabs defaultValue="users" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="users">Users</TabsTrigger>
             <TabsTrigger value="listings">Listings</TabsTrigger>
             <TabsTrigger value="requests">Requests</TabsTrigger>
             <TabsTrigger value="reviews">Reviews</TabsTrigger>
             <TabsTrigger value="contacts">Contacts</TabsTrigger>
             <TabsTrigger value="complaints">Complaints</TabsTrigger>
+            <TabsTrigger value="audit">Audit Log</TabsTrigger>
           </TabsList>
 
           {/* Users Tab */}
@@ -284,29 +289,49 @@ export default function AdminDashboard() {
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Name</TableHead>
-                        <TableHead>Role</TableHead>
-                        <TableHead>Joined</TableHead>
-                        <TableHead>Change Role</TableHead>
+                         <TableHead>Name</TableHead>
+                         <TableHead>Role</TableHead>
+                         <TableHead>Status</TableHead>
+                         <TableHead>Joined</TableHead>
+                         <TableHead>Change Role</TableHead>
+                         <TableHead>Actions</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {users.map((u) => (
                         <TableRow key={u.user_id}>
-                          <TableCell className="font-medium">{u.name || "—"}</TableCell>
-                          <TableCell><Badge variant="secondary" className="capitalize">{u.role || "none"}</Badge></TableCell>
-                          <TableCell className="text-muted-foreground text-sm">{new Date(u.created_at).toLocaleDateString()}</TableCell>
-                          <TableCell>
-                            <Select defaultValue={u.role ?? ""} onValueChange={(v) => handleRoleChange(u.user_id, v)}>
-                              <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                <SelectItem value="admin">Admin</SelectItem>
-                                <SelectItem value="donor">Donor</SelectItem>
-                                <SelectItem value="receiver">Receiver</SelectItem>
-                                <SelectItem value="volunteer">Volunteer</SelectItem>
-                              </SelectContent>
-                            </Select>
+                          <TableCell className="font-medium">
+                            {u.name || "—"}
+                            {u.is_banned && <Badge variant="destructive" className="ml-2 text-xs">Banned</Badge>}
                           </TableCell>
+                           <TableCell><Badge variant="secondary" className="capitalize">{u.role || "none"}</Badge></TableCell>
+                           <TableCell>
+                             {u.is_banned ? (
+                               <span className="text-xs text-destructive" title={u.ban_reason || undefined}>Suspended</span>
+                             ) : (
+                               <span className="text-xs text-green-600">Active</span>
+                             )}
+                           </TableCell>
+                           <TableCell className="text-muted-foreground text-sm">{new Date(u.created_at).toLocaleDateString()}</TableCell>
+                           <TableCell>
+                             <Select defaultValue={u.role ?? ""} onValueChange={(v) => handleRoleChange(u.user_id, v)}>
+                               <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
+                               <SelectContent>
+                                 <SelectItem value="admin">Admin</SelectItem>
+                                 <SelectItem value="donor">Donor</SelectItem>
+                                 <SelectItem value="receiver">Receiver</SelectItem>
+                                 <SelectItem value="volunteer">Volunteer</SelectItem>
+                               </SelectContent>
+                             </Select>
+                           </TableCell>
+                           <TableCell>
+                             <BanUserDialog
+                               userId={u.user_id}
+                               userName={u.name || "User"}
+                               isBanned={u.is_banned}
+                               onComplete={loadData}
+                             />
+                           </TableCell>
                         </TableRow>
                       ))}
                     </TableBody>
@@ -503,6 +528,47 @@ export default function AdminDashboard() {
                               <Trash2 className="h-4 w-4 text-destructive" />
                             </Button>
                           </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Audit Log Tab */}
+          <TabsContent value="audit">
+            <Card>
+              <CardHeader><CardTitle>Admin Activity Log</CardTitle></CardHeader>
+              <CardContent>
+                {loading ? <p className="text-muted-foreground">Loading...</p> : auditLog.length === 0 ? (
+                  <p className="text-muted-foreground">No activity recorded yet.</p>
+                ) : (
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead>Admin</TableHead>
+                        <TableHead>Action</TableHead>
+                        <TableHead>Target</TableHead>
+                        <TableHead>Details</TableHead>
+                        <TableHead>Date</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {auditLog.map((entry) => (
+                        <TableRow key={entry.id}>
+                          <TableCell className="font-medium text-sm">{entry.admin_name || "Admin"}</TableCell>
+                          <TableCell>
+                            <Badge variant="outline" className="capitalize text-xs">
+                              {entry.action.replace(/_/g, " ")}
+                            </Badge>
+                          </TableCell>
+                          <TableCell className="text-sm text-muted-foreground capitalize">{entry.target_type}</TableCell>
+                          <TableCell className="max-w-[200px] truncate text-sm text-muted-foreground">
+                            {entry.details?.user_name || entry.details?.reason || "—"}
+                          </TableCell>
+                          <TableCell className="text-muted-foreground text-sm">{new Date(entry.created_at).toLocaleString()}</TableCell>
                         </TableRow>
                       ))}
                     </TableBody>

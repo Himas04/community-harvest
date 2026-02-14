@@ -14,6 +14,36 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_audit_log: {
+        Row: {
+          action: string
+          admin_id: string
+          created_at: string
+          details: Json | null
+          id: string
+          target_id: string | null
+          target_type: string
+        }
+        Insert: {
+          action: string
+          admin_id: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type: string
+        }
+        Update: {
+          action?: string
+          admin_id?: string
+          created_at?: string
+          details?: Json | null
+          id?: string
+          target_id?: string | null
+          target_type?: string
+        }
+        Relationships: []
+      }
       complaints: {
         Row: {
           admin_reply: string | null
@@ -82,9 +112,12 @@ export type Database = {
       }
       food_listings: {
         Row: {
+          category: Database["public"]["Enums"]["food_category"] | null
           created_at: string
           description: string | null
+          dietary_tags: string[] | null
           donor_id: string
+          expires_at: string | null
           id: string
           image_url: string | null
           latitude: number | null
@@ -95,9 +128,12 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          category?: Database["public"]["Enums"]["food_category"] | null
           created_at?: string
           description?: string | null
+          dietary_tags?: string[] | null
           donor_id: string
+          expires_at?: string | null
           id?: string
           image_url?: string | null
           latitude?: number | null
@@ -108,9 +144,12 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          category?: Database["public"]["Enums"]["food_category"] | null
           created_at?: string
           description?: string | null
+          dietary_tags?: string[] | null
           donor_id?: string
+          expires_at?: string | null
           id?: string
           image_url?: string | null
           latitude?: number | null
@@ -237,9 +276,11 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          ban_reason: string | null
           bio: string | null
           created_at: string
           id: string
+          is_banned: boolean
           name: string | null
           phone: string | null
           updated_at: string
@@ -247,9 +288,11 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          ban_reason?: string | null
           bio?: string | null
           created_at?: string
           id?: string
+          is_banned?: boolean
           name?: string | null
           phone?: string | null
           updated_at?: string
@@ -257,9 +300,11 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          ban_reason?: string | null
           bio?: string | null
           created_at?: string
           id?: string
+          is_banned?: boolean
           name?: string | null
           phone?: string | null
           updated_at?: string
@@ -331,6 +376,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      archive_expired_listings: { Args: never; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -341,7 +387,14 @@ export type Database = {
     }
     Enums: {
       app_role: "admin" | "donor" | "receiver" | "volunteer"
-      listing_status: "available" | "claimed" | "completed"
+      food_category:
+        | "cooked"
+        | "raw"
+        | "packaged"
+        | "baked"
+        | "beverages"
+        | "other"
+      listing_status: "available" | "claimed" | "completed" | "expired"
       request_status:
         | "pending"
         | "accepted"
@@ -476,7 +529,15 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["admin", "donor", "receiver", "volunteer"],
-      listing_status: ["available", "claimed", "completed"],
+      food_category: [
+        "cooked",
+        "raw",
+        "packaged",
+        "baked",
+        "beverages",
+        "other",
+      ],
+      listing_status: ["available", "claimed", "completed", "expired"],
       request_status: [
         "pending",
         "accepted",
