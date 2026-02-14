@@ -8,9 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { StarRating } from "@/components/StarRating";
+import { AvatarUpload } from "@/components/AvatarUpload";
 import { fetchReviewsForUser, fetchAverageRating, type Review } from "@/lib/reviews";
 
 export default function Profile() {
@@ -20,6 +20,7 @@ export default function Profile() {
   const [phone, setPhone] = useState("");
   const [bio, setBio] = useState("");
   const [loading, setLoading] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [avgRating, setAvgRating] = useState<{ avg: number; count: number }>({ avg: 0, count: 0 });
 
@@ -30,6 +31,7 @@ export default function Profile() {
         setName(data.name ?? "");
         setPhone(data.phone ?? "");
         setBio(data.bio ?? "");
+        setAvatarUrl(data.avatar_url ?? null);
       }
     });
     fetchReviewsForUser(user.id).then(setReviews);
@@ -54,11 +56,12 @@ export default function Profile() {
       <div className="container mx-auto max-w-lg px-4 py-12">
         <Card>
           <CardHeader className="items-center text-center">
-            <Avatar className="h-20 w-20">
-              <AvatarFallback className="bg-primary/10 text-2xl font-bold text-primary">
-                {name?.charAt(0)?.toUpperCase() || "U"}
-              </AvatarFallback>
-            </Avatar>
+            <AvatarUpload
+              userId={user!.id}
+              currentUrl={avatarUrl}
+              fallbackName={name}
+              onUpload={setAvatarUrl}
+            />
             <CardTitle className="mt-3">My Profile</CardTitle>
             {role && <Badge variant="secondary" className="capitalize">{role}</Badge>}
             {avgRating.count > 0 && (
