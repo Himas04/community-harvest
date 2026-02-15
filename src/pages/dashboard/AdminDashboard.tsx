@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { StarRating } from "@/components/StarRating";
+import { ImpactStats } from "@/components/ImpactStats";
 import { useToast } from "@/hooks/use-toast";
 import { fetchFoodListings } from "@/lib/food-listings";
 import { fetchAllRequestsAdmin, statusLabel, statusColor, type PickupRequest } from "@/lib/pickup-requests";
@@ -89,11 +90,11 @@ export default function AdminDashboard() {
   const pendingRequests = requests.filter((r) => r.status === "pending").length;
 
   // Chart data
-  const roleCounts = ["admin", "donor", "receiver", "volunteer"].map((r) => ({
-    name: r.charAt(0).toUpperCase() + r.slice(1),
+  const roleCounts = ["admin", "donor", "receiver", "volunteer", "ngo"].map((r) => ({
+    name: r === "ngo" ? "NGO" : r.charAt(0).toUpperCase() + r.slice(1),
     value: users.filter((u) => u.role === r).length,
   }));
-  const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "#22c55e", "#f59e0b"];
+  const PIE_COLORS = ["hsl(var(--primary))", "hsl(var(--accent))", "#22c55e", "#f59e0b", "#8b5cf6"];
 
   const listingStatusData = ["available", "claimed", "completed"].map((s) => ({
     name: s.charAt(0).toUpperCase() + s.slice(1),
@@ -221,6 +222,12 @@ export default function AdminDashboard() {
           ))}
         </div>
 
+        {/* Platform Impact */}
+        <div className="mb-8">
+          <h2 className="mb-3 text-lg font-semibold">Platform Impact</h2>
+          <ImpactStats role="admin" />
+        </div>
+
         {/* Charts */}
         <div className="mb-8 grid gap-6 md:grid-cols-3">
           <Card>
@@ -316,12 +323,13 @@ export default function AdminDashboard() {
                            <TableCell>
                              <Select defaultValue={u.role ?? ""} onValueChange={(v) => handleRoleChange(u.user_id, v)}>
                                <SelectTrigger className="w-32"><SelectValue /></SelectTrigger>
-                               <SelectContent>
-                                 <SelectItem value="admin">Admin</SelectItem>
-                                 <SelectItem value="donor">Donor</SelectItem>
-                                 <SelectItem value="receiver">Receiver</SelectItem>
-                                 <SelectItem value="volunteer">Volunteer</SelectItem>
-                               </SelectContent>
+                                <SelectContent>
+                                  <SelectItem value="admin">Admin</SelectItem>
+                                  <SelectItem value="donor">Donor</SelectItem>
+                                  <SelectItem value="receiver">Receiver</SelectItem>
+                                  <SelectItem value="volunteer">Volunteer</SelectItem>
+                                  <SelectItem value="ngo">NGO</SelectItem>
+                                </SelectContent>
                              </Select>
                            </TableCell>
                            <TableCell>

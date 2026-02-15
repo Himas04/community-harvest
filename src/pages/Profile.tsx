@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import { StarRating } from "@/components/StarRating";
 import { AvatarUpload } from "@/components/AvatarUpload";
+import { ImpactStats } from "@/components/ImpactStats";
 import { fetchReviewsForUser, fetchAverageRating, type Review } from "@/lib/reviews";
 
 export default function Profile() {
@@ -93,6 +94,16 @@ export default function Profile() {
             <Button className="w-full" onClick={handleSave} disabled={loading}>
               {loading ? "Saving..." : "Save Changes"}
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Impact Stats */}
+        <Card className="mt-6">
+          <CardHeader>
+            <CardTitle className="text-lg">My Impact</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <ImpactStats userId={user?.id} role={role} variant="compact" />
           </CardContent>
         </Card>
 
