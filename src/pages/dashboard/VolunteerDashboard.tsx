@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ImpactStats } from "@/components/ImpactStats";
 import { useNavigate } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -81,6 +82,12 @@ export default function VolunteerDashboard() {
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Available Pickups</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{pending.length}</p><p className="text-xs text-muted-foreground">Pending requests</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">My Deliveries</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{active.length}</p><p className="text-xs text-muted-foreground">Active deliveries</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{completed.length}</p><p className="text-xs text-muted-foreground">Total delivered</p></CardContent></Card>
+        </div>
+
+        {/* Impact Stats */}
+        <div className="mb-8">
+          <h2 className="mb-3 text-lg font-semibold">Your Impact</h2>
+          <ImpactStats userId={user?.id} role="volunteer" variant="compact" />
         </div>
 
         {/* Available Pickups */}

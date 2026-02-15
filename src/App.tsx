@@ -24,6 +24,8 @@ import BrowseFood from "./pages/food/BrowseFood";
 import Messages from "./pages/Messages";
 import Contact from "./pages/Contact";
 import Complaints from "./pages/Complaints";
+import NGOSignup from "./pages/signup/NGOSignup";
+import NGODashboard from "./pages/dashboard/NGODashboard";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -60,6 +62,8 @@ const App = () => (
             <Route path="/dashboard/donor" element={<ProtectedRoute><RoleRoute allowedRole="donor"><DonorDashboard /></RoleRoute></ProtectedRoute>} />
             <Route path="/dashboard/receiver" element={<ProtectedRoute><RoleRoute allowedRole="receiver"><ReceiverDashboard /></RoleRoute></ProtectedRoute>} />
             <Route path="/dashboard/volunteer" element={<ProtectedRoute><RoleRoute allowedRole="volunteer"><VolunteerDashboard /></RoleRoute></ProtectedRoute>} />
+            <Route path="/dashboard/ngo" element={<ProtectedRoute><RoleRoute allowedRole="ngo"><NGODashboard /></RoleRoute></ProtectedRoute>} />
+            <Route path="/signup/ngo" element={<NGOSignup />} />
             {/* Admin routes — completely separate auth flow */}
             <Route path="/admin/login" element={<AdminLogin />} />
             <Route path="/admin/dashboard" element={<AdminRoute><AdminDashboard /></AdminRoute>} />

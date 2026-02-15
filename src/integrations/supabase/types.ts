@@ -232,6 +232,45 @@ export type Database = {
         }
         Relationships: []
       }
+      organizations: {
+        Row: {
+          created_at: string
+          description: string | null
+          id: string
+          logo_url: string | null
+          org_name: string
+          registration_number: string | null
+          service_area_km: number | null
+          updated_at: string
+          user_id: string
+          verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          logo_url?: string | null
+          org_name: string
+          registration_number?: string | null
+          service_area_km?: number | null
+          updated_at?: string
+          user_id: string
+          verified?: boolean
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          id?: string
+          logo_url?: string | null
+          org_name?: string
+          registration_number?: string | null
+          service_area_km?: number | null
+          updated_at?: string
+          user_id?: string
+          verified?: boolean
+        }
+        Relationships: []
+      }
       pickup_requests: {
         Row: {
           created_at: string
@@ -279,6 +318,7 @@ export type Database = {
           ban_reason: string | null
           bio: string | null
           created_at: string
+          email_notifications: boolean
           id: string
           is_banned: boolean
           name: string | null
@@ -291,6 +331,7 @@ export type Database = {
           ban_reason?: string | null
           bio?: string | null
           created_at?: string
+          email_notifications?: boolean
           id?: string
           is_banned?: boolean
           name?: string | null
@@ -303,6 +344,7 @@ export type Database = {
           ban_reason?: string | null
           bio?: string | null
           created_at?: string
+          email_notifications?: boolean
           id?: string
           is_banned?: boolean
           name?: string | null
@@ -386,7 +428,7 @@ export type Database = {
       }
     }
     Enums: {
-      app_role: "admin" | "donor" | "receiver" | "volunteer"
+      app_role: "admin" | "donor" | "receiver" | "volunteer" | "ngo"
       food_category:
         | "cooked"
         | "raw"
@@ -528,7 +570,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["admin", "donor", "receiver", "volunteer"],
+      app_role: ["admin", "donor", "receiver", "volunteer", "ngo"],
       food_category: [
         "cooked",
         "raw",

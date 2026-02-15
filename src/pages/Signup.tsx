@@ -92,6 +92,10 @@ export default function Signup() {
             Already have an account?{" "}
             <Link to="/login" className="font-medium text-primary hover:underline">Log in</Link>
           </p>
+          <p className="mt-2 text-center text-sm text-muted-foreground">
+            Registering an NGO?{" "}
+            <Link to="/signup/ngo" className="font-medium text-primary hover:underline">NGO Registration</Link>
+          </p>
         </CardContent>
       </Card>
     </div>

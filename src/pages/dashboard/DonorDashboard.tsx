@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { ImpactStats } from "@/components/ImpactStats";
 import { Link } from "react-router-dom";
 import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -73,6 +74,12 @@ export default function DonorDashboard() {
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{completed}</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Claimed</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-accent">{claimed}</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Pending Requests</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-accent">{pendingRequests}</p></CardContent></Card>
+        </div>
+
+        {/* Impact Stats */}
+        <div className="mb-8">
+          <h2 className="mb-3 text-lg font-semibold">Your Impact</h2>
+          <ImpactStats userId={user?.id} role="donor" variant="compact" />
         </div>
 
         {/* Incoming Requests */}
