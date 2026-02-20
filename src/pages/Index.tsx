@@ -7,18 +7,18 @@ import { Navbar } from "@/components/Navbar";
 import { useAuth } from "@/lib/auth";
 
 const features = [
-  { icon: Heart, title: "Share Food", desc: "Donate surplus food to people in your community who need it most.", step: "01" },
-  { icon: MapPin, title: "Find Nearby", desc: "Browse an interactive map to discover available food near you.", step: "02" },
-  { icon: Truck, title: "Volunteer Pickups", desc: "Volunteers help deliver food from donors to receivers seamlessly.", step: "03" },
-  { icon: ShieldCheck, title: "Trusted Community", desc: "Ratings and reviews build trust between donors, receivers, and volunteers.", step: "04" },
-];
+{ icon: Heart, title: "Share Food", desc: "Donate surplus food to people in your community who need it most.", step: "01" },
+{ icon: MapPin, title: "Find Nearby", desc: "Browse an interactive map to discover available food near you.", step: "02" },
+{ icon: Truck, title: "Volunteer Pickups", desc: "Volunteers help deliver food from donors to receivers seamlessly.", step: "03" },
+{ icon: ShieldCheck, title: "Trusted Community", desc: "Ratings and reviews build trust between donors, receivers, and volunteers.", step: "04" }];
+
 
 const stats = [
-  { value: "0kg", label: "Food Saved" },
-  { value: "4", label: "Roles Supported" },
-  { value: "100%", label: "Free to Use" },
-  { value: "∞", label: "Potential Impact" },
-];
+{ value: "0kg", label: "Food Saved" },
+{ value: "4", label: "Roles Supported" },
+{ value: "100%", label: "Free to Use" },
+{ value: "∞", label: "Potential Impact" }];
+
 
 export default function Index() {
   const { user, role } = useAuth();
@@ -42,7 +42,7 @@ export default function Index() {
           </div>
           <h1 className="max-w-3xl text-4xl font-extrabold tracking-tight md:text-6xl lg:text-7xl">
             Share Food,{" "}
-            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">Spread Love</span>
+            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-left text-primary">Spread Love</span>
           </h1>
           <p className="max-w-xl text-lg text-muted-foreground md:text-xl">
             LeftoverLove connects food donors with people in need through a community-driven platform with real-time maps, volunteer pickups, and trust-based ratings.
@@ -51,11 +51,11 @@ export default function Index() {
             <Button size="lg" className="gap-2 px-8 shadow-lg shadow-primary/20" asChild>
               <Link to={ctaLink}>{ctaText} <ArrowRight className="h-4 w-4" /></Link>
             </Button>
-            {!user && (
-              <Button size="lg" variant="outline" className="px-8" asChild>
+            {!user &&
+            <Button size="lg" variant="outline" className="px-8" asChild>
                 <Link to="/about">Learn More</Link>
               </Button>
-            )}
+            }
           </div>
         </div>
       </section>
@@ -63,12 +63,12 @@ export default function Index() {
       {/* Stats bar */}
       <section className="border-y bg-muted/30">
         <div className="container mx-auto grid grid-cols-2 gap-4 px-4 py-8 md:grid-cols-4">
-          {stats.map((s) => (
-            <div key={s.label} className="text-center">
+          {stats.map((s) =>
+          <div key={s.label} className="text-center">
               <p className="text-2xl font-bold text-primary md:text-3xl">{s.value}</p>
               <p className="text-sm text-muted-foreground">{s.label}</p>
             </div>
-          ))}
+          )}
         </div>
       </section>
 
@@ -80,9 +80,9 @@ export default function Index() {
           <p className="mt-3 max-w-lg mx-auto text-muted-foreground">A simple, powerful way to reduce food waste in your community.</p>
         </div>
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-          {features.map((f) => (
-            <Card key={f.title} className="group relative overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
-              <div className="absolute top-4 right-4 text-4xl font-extrabold text-primary/10 group-hover:text-primary/20 transition-colors">{f.step}</div>
+          {features.map((f) =>
+          <Card key={f.title} className="group relative overflow-hidden transition-all hover:shadow-lg hover:-translate-y-1">
+              <div className="absolute top-4 right-4 text-4xl font-extrabold text-primary/10 group-hover:text-primary/20 transition-colors border-primary">{f.step}</div>
               <CardContent className="flex flex-col items-start gap-4 p-6">
                 <div className="rounded-xl bg-primary/10 p-3 transition-colors group-hover:bg-primary/20">
                   <f.icon className="h-6 w-6 text-primary" />
@@ -91,7 +91,7 @@ export default function Index() {
                 <p className="text-sm text-muted-foreground">{f.desc}</p>
               </CardContent>
             </Card>
-          ))}
+          )}
         </div>
       </section>
 
@@ -105,19 +105,19 @@ export default function Index() {
           </div>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {[
-              { icon: "🍽️", role: "Donor", desc: "Share surplus food with your community", color: "border-primary/20 hover:border-primary/40" },
-              { icon: "🙋", role: "Receiver", desc: "Find and request free food nearby", color: "border-accent/20 hover:border-accent/40" },
-              { icon: "🚗", role: "Volunteer", desc: "Help deliver food to those in need", color: "border-secondary/20 hover:border-secondary/40" },
-              { icon: "🛡️", role: "Admin", desc: "Moderate and manage the platform", color: "border-muted-foreground/20 hover:border-muted-foreground/40" },
-            ].map((r) => (
-              <Card key={r.role} className={`text-center transition-all hover:shadow-lg hover:-translate-y-1 border-2 ${r.color}`}>
+            { icon: "🍽️", role: "Donor", desc: "Share surplus food with your community", color: "border-primary/20 hover:border-primary/40" },
+            { icon: "🙋", role: "Receiver", desc: "Find and request free food nearby", color: "border-accent/20 hover:border-accent/40" },
+            { icon: "🚗", role: "Volunteer", desc: "Help deliver food to those in need", color: "border-secondary/20 hover:border-secondary/40" },
+            { icon: "🛡️", role: "Admin", desc: "Moderate and manage the platform", color: "border-muted-foreground/20 hover:border-muted-foreground/40" }].
+            map((r) =>
+            <Card key={r.role} className={`text-center transition-all hover:shadow-lg hover:-translate-y-1 border-2 ${r.color}`}>
                 <CardContent className="p-8">
                   <div className="mb-4 text-5xl">{r.icon}</div>
                   <h3 className="text-lg font-bold">{r.role}</h3>
                   <p className="mt-2 text-sm text-muted-foreground">{r.desc}</p>
                 </CardContent>
               </Card>
-            ))}
+            )}
           </div>
         </div>
       </section>
@@ -162,6 +162,6 @@ export default function Index() {
           <p>© 2026 LeftoverLove. Built with love to reduce food waste.</p>
         </div>
       </footer>
-    </div>
-  );
+    </div>);
+
 }
