@@ -78,7 +78,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .from("profiles")
       .select("is_banned, ban_reason")
       .eq("user_id", data.user.id)
-      .single();
+      .maybeSingle();
 
     if (profile?.is_banned) {
       await supabase.auth.signOut();
