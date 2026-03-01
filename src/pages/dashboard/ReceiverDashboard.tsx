@@ -8,10 +8,19 @@ import { Badge } from "@/components/ui/badge";
 import { FoodMap } from "@/components/FoodMap";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchFoodListings } from "@/lib/food-listings";
-import { fetchRequestsForReceiver, cancelRequest, statusLabel, statusColor, type PickupRequest } from "@/lib/pickup-requests";
+import {
+  fetchRequestsForReceiver,
+  cancelRequest,
+  receiverSelfPickup,
+  requestVolunteer,
+  receiverConfirmDelivery,
+  statusLabel,
+  statusColor,
+  type PickupRequest,
+} from "@/lib/pickup-requests";
 import { useAuth } from "@/lib/auth";
 import { useToast } from "@/hooks/use-toast";
-import { MapPin, Search, Package, X } from "lucide-react";
+import { MapPin, Search, Package, X, Truck, UserCheck, CheckCircle } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { Link } from "react-router-dom";
 
@@ -55,8 +64,82 @@ export default function ReceiverDashboard() {
     }
   };
 
-  const activeRequests = requests.filter((r) => r.status !== "cancelled" && r.status !== "delivered");
-  const completedRequests = requests.filter((r) => r.status === "delivered");
+  const handleSelfPickup = async (req: PickupRequest) => {
+    try {
+      await receiverSelfPickup(req.id);
+      toast({ title: "Marked as self-pickup! Please confirm once you have the food." });
+      loadData();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleRequestVolunteer = async (req: PickupRequest) => {
+    try {
+      await requestVolunteer(req.id);
+      toast({ title: "Volunteer requested!", description: "A volunteer will be notified to pick up the food for you." });
+      loadData();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const handleConfirm = async (req: PickupRequest) => {
+    try {
+      await receiverConfirmDelivery(req.id);
+      toast({ title: "Delivery confirmed! Thank you." });
+      loadData();
+    } catch (err: any) {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    }
+  };
+
+  const activeRequests = requests.filter((r) => r.status !== "cancelled" && r.status !== "confirmed");
+  const completedRequests = requests.filter((r) => r.status === "confirmed");
+
+  // Render action buttons based on request status
+  const renderActions = (req: PickupRequest) => {
+    switch (req.status) {
+      case "pending":
+        return (
+          <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleCancel(req)}>
+            <X className="mr-1 h-3 w-3" /> Cancel
+          </Button>
+        );
+      case "donor_approved":
+        return (
+          <div className="flex gap-2 flex-wrap">
+            <Button size="sm" onClick={() => handleSelfPickup(req)}>
+              <UserCheck className="mr-1 h-3 w-3" /> I'll Pick Up
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => handleRequestVolunteer(req)}>
+              <Truck className="mr-1 h-3 w-3" /> Request Volunteer
+            </Button>
+          </div>
+        );
+      case "volunteer_requested":
+        return <p className="text-xs text-muted-foreground italic">Waiting for a volunteer to accept...</p>;
+      case "volunteer_accepted":
+        return <p className="text-xs text-muted-foreground italic">Volunteer is on the way to pick up!</p>;
+      case "picked_up":
+        if (req.self_pickup) {
+          return (
+            <Button size="sm" onClick={() => handleConfirm(req)}>
+              <CheckCircle className="mr-1 h-3 w-3" /> Confirm Received
+            </Button>
+          );
+        }
+        return <p className="text-xs text-muted-foreground italic">Volunteer has picked up. Delivery in progress...</p>;
+      case "delivered":
+        return (
+          <Button size="sm" onClick={() => handleConfirm(req)}>
+            <CheckCircle className="mr-1 h-3 w-3" /> Confirm Delivery
+          </Button>
+        );
+      default:
+        return null;
+    }
+  };
 
   return (
     <div className="min-h-screen">
@@ -95,11 +178,7 @@ export default function ReceiverDashboard() {
                       <p className="mb-1 flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" />{req.food_listings.pickup_address}</p>
                     )}
                     <p className="text-xs text-muted-foreground mb-2">Requested {new Date(req.created_at).toLocaleDateString()}</p>
-                    {req.status === "pending" && (
-                      <Button size="sm" variant="ghost" className="text-destructive" onClick={() => handleCancel(req)}>
-                        <X className="mr-1 h-3 w-3" /> Cancel
-                      </Button>
-                    )}
+                    {renderActions(req)}
                   </CardContent>
                 </Card>
               ))}
