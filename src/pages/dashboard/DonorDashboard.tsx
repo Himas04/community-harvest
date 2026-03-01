@@ -8,16 +8,9 @@ import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { fetchMyListings, deleteFoodListing } from "@/lib/food-listings";
-import {
-  fetchRequestsForDonor,
-  donorApproveRequest,
-  donorRejectRequest,
-  statusLabel,
-  statusColor,
-  type PickupRequest,
-} from "@/lib/pickup-requests";
+import { fetchRequestsForDonor, statusLabel, statusColor, type PickupRequest } from "@/lib/pickup-requests";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, Edit, Trash2, MapPin, Package, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Edit, Trash2, MapPin, Package } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 
 export default function DonorDashboard() {
@@ -38,6 +31,7 @@ export default function DonorDashboard() {
 
   useEffect(() => { loadData(); }, [user]);
 
+  // Realtime subscriptions
   useEffect(() => {
     if (!user) return;
     const channel = supabase
@@ -59,31 +53,10 @@ export default function DonorDashboard() {
     }
   };
 
-  const handleApprove = async (req: PickupRequest) => {
-    try {
-      await donorApproveRequest(req.id);
-      toast({ title: "Request approved!" });
-      loadData();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
-  };
-
-  const handleReject = async (req: PickupRequest) => {
-    if (!confirm("Reject this request? The listing will become available again.")) return;
-    try {
-      await donorRejectRequest(req.id, req.listing_id);
-      toast({ title: "Request rejected" });
-      loadData();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
-  };
-
   const active = listings.filter((l) => l.status === "available").length;
   const completed = listings.filter((l) => l.status === "completed").length;
   const claimed = listings.filter((l) => l.status === "claimed").length;
-  const pendingRequests = requests.filter((r) => r.status === "pending").length;
+  const pendingRequests = requests.filter((r) => r.status === "pending" || r.status === "accepted").length;
 
   return (
     <div className="min-h-screen">
@@ -100,7 +73,7 @@ export default function DonorDashboard() {
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Active Listings</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{active}</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{completed}</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Claimed</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-accent">{claimed}</p></CardContent></Card>
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Pending Approval</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-accent">{pendingRequests}</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Pending Requests</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-accent">{pendingRequests}</p></CardContent></Card>
         </div>
 
         {/* Impact Stats */}
@@ -122,19 +95,7 @@ export default function DonorDashboard() {
                       <Badge className={`${statusColor(req.status)} text-white shrink-0 text-xs`}>{statusLabel(req.status)}</Badge>
                     </div>
                     {req.note && <p className="mb-2 text-sm text-muted-foreground line-clamp-2">"{req.note}"</p>}
-                    <p className="text-xs text-muted-foreground mb-2">Requested {new Date(req.created_at).toLocaleDateString()}</p>
-                    
-                    {/* Donor approve/reject for pending requests */}
-                    {req.status === "pending" && (
-                      <div className="flex gap-2">
-                        <Button size="sm" onClick={() => handleApprove(req)}>
-                          <CheckCircle className="mr-1 h-3 w-3" /> Approve
-                        </Button>
-                        <Button size="sm" variant="destructive" onClick={() => handleReject(req)}>
-                          <XCircle className="mr-1 h-3 w-3" /> Reject
-                        </Button>
-                      </div>
-                    )}
+                    <p className="text-xs text-muted-foreground">Requested {new Date(req.created_at).toLocaleDateString()}</p>
                   </CardContent>
                 </Card>
               ))}

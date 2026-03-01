@@ -9,11 +9,10 @@ import { useAuth } from "@/lib/auth";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import {
-  fetchVolunteerAvailableRequests,
+  fetchPendingRequests,
   fetchVolunteerRequests,
-  volunteerAcceptRequest,
-  volunteerPickedUp,
-  volunteerDelivered,
+  acceptRequest,
+  updateRequestStatus,
   statusLabel,
   statusColor,
   type PickupRequest,
@@ -24,7 +23,7 @@ export default function VolunteerDashboard() {
   const { user } = useAuth();
   const { toast } = useToast();
   const navigate = useNavigate();
-  const [available, setAvailable] = useState<PickupRequest[]>([]);
+  const [pending, setPending] = useState<PickupRequest[]>([]);
   const [myDeliveries, setMyDeliveries] = useState<PickupRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -32,9 +31,9 @@ export default function VolunteerDashboard() {
     if (!user) return;
     setLoading(true);
     Promise.all([
-      fetchVolunteerAvailableRequests(),
+      fetchPendingRequests(),
       fetchVolunteerRequests(user.id),
-    ]).then(([a, d]) => { setAvailable(a); setMyDeliveries(d); }).catch(() => {}).finally(() => setLoading(false));
+    ]).then(([p, d]) => { setPending(p); setMyDeliveries(d); }).catch(() => {}).finally(() => setLoading(false));
   };
 
   useEffect(() => { loadData(); }, [user]);
@@ -52,7 +51,7 @@ export default function VolunteerDashboard() {
   const handleAccept = async (requestId: string) => {
     if (!user) return;
     try {
-      await volunteerAcceptRequest(requestId, user.id);
+      await acceptRequest(requestId, user.id);
       toast({ title: "Pickup accepted!" });
       loadData();
     } catch (err: any) {
@@ -60,28 +59,18 @@ export default function VolunteerDashboard() {
     }
   };
 
-  const handlePickedUp = async (requestId: string) => {
+  const handleStatusUpdate = async (requestId: string, status: "picked_up" | "delivered") => {
     try {
-      await volunteerPickedUp(requestId);
-      toast({ title: "Marked as picked up!" });
+      await updateRequestStatus(requestId, status);
+      toast({ title: `Status updated to ${statusLabel(status)}` });
       loadData();
     } catch (err: any) {
       toast({ title: "Error", description: err.message, variant: "destructive" });
     }
   };
 
-  const handleDelivered = async (requestId: string) => {
-    try {
-      await volunteerDelivered(requestId);
-      toast({ title: "Marked as delivered! Waiting for receiver confirmation." });
-      loadData();
-    } catch (err: any) {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
-    }
-  };
-
-  const active = myDeliveries.filter((d) => d.status === "volunteer_accepted" || d.status === "picked_up");
-  const completed = myDeliveries.filter((d) => d.status === "delivered" || d.status === "confirmed");
+  const active = myDeliveries.filter((d) => d.status === "accepted" || d.status === "picked_up");
+  const completed = myDeliveries.filter((d) => d.status === "delivered");
 
   return (
     <div className="min-h-screen">
@@ -90,7 +79,7 @@ export default function VolunteerDashboard() {
         <h1 className="mb-6 text-3xl font-bold">Volunteer Dashboard</h1>
 
         <div className="mb-8 grid gap-4 sm:grid-cols-3">
-          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Available Pickups</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{available.length}</p><p className="text-xs text-muted-foreground">Waiting for volunteers</p></CardContent></Card>
+          <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Available Pickups</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{pending.length}</p><p className="text-xs text-muted-foreground">Pending requests</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">My Deliveries</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{active.length}</p><p className="text-xs text-muted-foreground">Active deliveries</p></CardContent></Card>
           <Card><CardHeader className="pb-2"><CardTitle className="text-sm font-medium text-muted-foreground">Completed</CardTitle></CardHeader><CardContent><p className="text-3xl font-bold text-primary">{completed.length}</p><p className="text-xs text-muted-foreground">Total delivered</p></CardContent></Card>
         </div>
@@ -101,15 +90,15 @@ export default function VolunteerDashboard() {
           <ImpactStats userId={user?.id} role="volunteer" variant="compact" />
         </div>
 
-        {/* Available Pickups (volunteer_requested status) */}
+        {/* Available Pickups */}
         <h2 className="mb-4 text-xl font-semibold flex items-center gap-2"><Package className="h-5 w-5" /> Available Pickups</h2>
         {loading ? (
           <p className="text-muted-foreground mb-8">Loading...</p>
-        ) : available.length === 0 ? (
-          <Card className="mb-8"><CardContent className="py-8 text-center text-muted-foreground">No pickups waiting for volunteers right now.</CardContent></Card>
+        ) : pending.length === 0 ? (
+          <Card className="mb-8"><CardContent className="py-8 text-center text-muted-foreground">No pending pickups right now.</CardContent></Card>
         ) : (
           <div className="mb-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {available.map((req) => (
+            {pending.map((req) => (
               <Card key={req.id}>
                 {req.food_listings?.image_url && <img src={req.food_listings.image_url} alt={req.food_listings.title} className="h-32 w-full object-cover rounded-t-lg" />}
                 <CardContent className="p-4">
@@ -143,13 +132,13 @@ export default function VolunteerDashboard() {
                       <p className="mb-2 flex items-center gap-1 text-xs text-muted-foreground"><MapPin className="h-3 w-3" />{req.food_listings.pickup_address}</p>
                     )}
                     <div className="flex gap-2">
-                      {req.status === "volunteer_accepted" && (
-                        <Button size="sm" variant="outline" onClick={() => handlePickedUp(req.id)}>
+                      {req.status === "accepted" && (
+                        <Button size="sm" variant="outline" onClick={() => handleStatusUpdate(req.id, "picked_up")}>
                           Mark Picked Up
                         </Button>
                       )}
                       {req.status === "picked_up" && (
-                        <Button size="sm" onClick={() => handleDelivered(req.id)}>
+                        <Button size="sm" onClick={() => handleStatusUpdate(req.id, "delivered")}>
                           <CheckCircle className="mr-1 h-3 w-3" /> Mark Delivered
                         </Button>
                       )}
@@ -171,7 +160,7 @@ export default function VolunteerDashboard() {
                   <CardContent className="p-4">
                     <div className="flex items-start justify-between gap-2">
                       <h3 className="font-semibold line-clamp-1">{req.food_listings?.title || "Listing"}</h3>
-                      <Badge className={`${statusColor(req.status)} text-white shrink-0 text-xs`}>{statusLabel(req.status)}</Badge>
+                      <Badge className="bg-green-600 text-white shrink-0 text-xs">Delivered</Badge>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">Completed {new Date(req.updated_at).toLocaleDateString()}</p>
                   </CardContent>

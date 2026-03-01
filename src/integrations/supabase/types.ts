@@ -278,7 +278,6 @@ export type Database = {
           listing_id: string
           note: string | null
           receiver_id: string
-          self_pickup: boolean
           status: Database["public"]["Enums"]["request_status"]
           updated_at: string
           volunteer_id: string | null
@@ -289,7 +288,6 @@ export type Database = {
           listing_id: string
           note?: string | null
           receiver_id: string
-          self_pickup?: boolean
           status?: Database["public"]["Enums"]["request_status"]
           updated_at?: string
           volunteer_id?: string | null
@@ -300,7 +298,6 @@ export type Database = {
           listing_id?: string
           note?: string | null
           receiver_id?: string
-          self_pickup?: boolean
           status?: Database["public"]["Enums"]["request_status"]
           updated_at?: string
           volunteer_id?: string | null
@@ -446,10 +443,6 @@ export type Database = {
         | "picked_up"
         | "delivered"
         | "cancelled"
-        | "donor_approved"
-        | "volunteer_requested"
-        | "volunteer_accepted"
-        | "confirmed"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -593,10 +586,6 @@ export const Constants = {
         "picked_up",
         "delivered",
         "cancelled",
-        "donor_approved",
-        "volunteer_requested",
-        "volunteer_accepted",
-        "confirmed",
       ],
     },
   },
